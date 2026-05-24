@@ -3,7 +3,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import styles from './HomeClient.module.css';
 
-type Status = 'idle' | 'loading' | 'subscribed' | 'denied' | 'unsupported' | 'error';
+type Status = 'idle' | 'loading' | 'subscribed' | 'denied' | 'unsupported' | 'error' | 'ios-needs-install';
+
+// Returns 'supported' if iOS 16.4+ installed as PWA, 'needs-install' if iOS but not installed, 'unsupported' if old iOS
+function getIOSPushStatus(): 'not-ios' | 'needs-install' | 'old-ios' | 'ready' {
+  if (typeof navigator === 'undefined') return 'not-ios';
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !(ua.includes('CriOS') && false); // CriOS still needs PWA
+  if (!isIOS) return 'not-ios';
+  const match = ua.match(/OS (\d+)_(\d+)/);
+  const major = match ? parseInt(match[1], 10) : 0;
+  const minor = match ? parseInt(match[2], 10) : 0;
+  const version = major + minor / 10;
+  if (version < 16.4) return 'old-ios';
+  const isInstalled = (navigator as any).standalone === true;
+  return isInstalled ? 'ready' : 'needs-install';
+}
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -16,8 +31,21 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
   const [status, setStatus] = useState<Status>('idle');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [message, setMessage] = useState('');
+  const [iosStatus, setIosStatus] = useState<'not-ios' | 'needs-install' | 'old-ios' | 'ready'>('not-ios');
 
   const checkExistingSubscription = useCallback(async () => {
+    const ios = getIOSPushStatus();
+    setIosStatus(ios);
+
+    if (ios === 'needs-install') {
+      setStatus('ios-needs-install');
+      return;
+    }
+    if (ios === 'old-ios') {
+      setStatus('unsupported');
+      return;
+    }
+
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       setStatus('unsupported');
       return;
@@ -142,10 +170,41 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
 
         {/* Status indicator & CTA */}
         <div className={`${styles.ctaWrapper} fade-up fade-up-delay-4`}>
+          {status === 'ios-needs-install' && (
+            <div className={styles.iosInstallCard}>
+              <div className={styles.iosInstallTitle}>
+                <SafariIcon /> Un passaggio in più su iOS
+              </div>
+              <p className={styles.iosInstallIntro}>
+                Safari su iPhone e iPad richiede che il sito sia aggiunto alla schermata Home per abilitare le notifiche push.
+              </p>
+              <ol className={styles.iosSteps}>
+                <li>
+                  <span className={styles.iosStepNum}>1</span>
+                  <span>Tocca il pulsante <strong>Condividi</strong> <ShareIcon /> in basso nella barra di Safari</span>
+                </li>
+                <li>
+                  <span className={styles.iosStepNum}>2</span>
+                  <span>Scorri e tocca <strong>&ldquo;Aggiungi a schermata Home&rdquo;</strong></span>
+                </li>
+                <li>
+                  <span className={styles.iosStepNum}>3</span>
+                  <span>Tocca <strong>&ldquo;Aggiungi&rdquo;</strong> in alto a destra</span>
+                </li>
+                <li>
+                  <span className={styles.iosStepNum}>4</span>
+                  <span>Apri l&apos;app dalla schermata Home e attiva le notifiche</span>
+                </li>
+              </ol>
+            </div>
+          )}
+
           {status === 'unsupported' && (
             <div className={`${styles.statusBadge} ${styles.warning}`}>
               <span className={styles.indicator} />
-              Il tuo browser non supporta le notifiche push
+              {iosStatus === 'old-ios'
+                ? 'Aggiorna iOS alla versione 16.4 o superiore per le notifiche push'
+                : 'Il tuo browser non supporta le notifiche push'}
             </div>
           )}
 
@@ -217,7 +276,26 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
   );
 }
 
-function BellIcon() {
+function SafariIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline', verticalAlign: 'text-bottom' }}>
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline', verticalAlign: 'text-bottom' }}>
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />

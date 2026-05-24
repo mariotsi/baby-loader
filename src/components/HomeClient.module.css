@@ -188,6 +188,71 @@
   animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* iOS install prompt */
+.iosInstallCard {
+  background: var(--bg-2);
+  border: 1px solid rgba(232, 213, 163, 0.2);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  max-width: 380px;
+  text-align: left;
+}
+
+.iosInstallTitle {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--accent);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.01em;
+}
+
+.iosInstallIntro {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.iosSteps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.iosSteps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.iosSteps li strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.iosStepNum {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(232, 213, 163, 0.12);
+  border: 1px solid rgba(232, 213, 163, 0.3);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
 .feedbackMsg {
   font-size: 13px;
   color: var(--text-2);
