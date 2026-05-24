@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="128" fill="#0a0a0a"/>
-  <rect width="512" height="512" rx="128" fill="none" stroke="#2a2a2a" stroke-width="1"/>
-  <circle cx="256" cy="256" r="153.6" fill="#e8d5a3"/>
-  <circle cx="256" cy="256" r="76.8" fill="#0a0a0a"/>
+  <rect width="512" height="512" rx="128" fill="#FFF1F8"/>
+  <rect width="512" height="512" rx="128" fill="none" stroke="#FFEAF4" stroke-width="3"/>
+  <text x="50%" y="50%" font-size="256" text-anchor="middle" dominant-baseline="central">👧</text>
 </svg>
