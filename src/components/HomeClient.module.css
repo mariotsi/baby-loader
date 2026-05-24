@@ -1,11 +1,12 @@
 .main {
-  min-height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 0 24px;
   position: relative;
-  overflow: hidden;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Playful floating shapes background */
@@ -288,6 +289,7 @@
   padding: 24px;
   max-width: 380px;
   text-align: left;
+  z-index: 2;
 }
 
 .iosInstallTitle {
@@ -415,7 +417,7 @@
 }
 
 @media (max-width: 600px) {
-  .hero { padding: 100px 0 40px; }
+  .hero { padding: 60px 0 30px; }
   .cards { grid-template-columns: 1fr; }
   .title { font-size: 44px; }
   .countTop {

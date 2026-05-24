@@ -53,10 +53,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Prevent the page from scrolling and ensure it never exceeds the viewport height.
-   Use dynamic viewport units for better mobile behavior. If you prefer internal
-   scrolling for long content, we can instead make a scrollable container. */
-html, body, #__next, main {
+/* Prevent the page itself from scrolling and ensure it never exceeds the viewport height.
+   The app root (`main`) will be allowed to scroll internally so small-screen
+   UI (e.g. the iOS install steps) remains reachable. */
+html, body, #__next {
   height: 100dvh;
   max-height: 100dvh;
   overflow: hidden;
