@@ -1,4 +1,4 @@
-// PushCast Service Worker v1.0
+// Stefania & Simone Service Worker v1.0
 // Handles push events and notification clicks
 
 self.addEventListener('install', (event) => {
@@ -13,7 +13,7 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('push', (event) => {
   let data = {
-    title: 'PushCast',
+    title: 'Stefania & Simone',
     body: 'Hai ricevuto una notifica.',
     icon: '/icon-192.png',
     badge: '/icon-72.png',
@@ -35,7 +35,7 @@ self.addEventListener('push', (event) => {
       icon: data.icon,
       badge: data.badge,
       vibrate: [100, 50, 100],
-      tag: 'pushcast-' + Date.now(),
+      tag: 'stefania-simone-' + Date.now(),
       requireInteraction: false,
       data: { url: data.url },
       actions: [

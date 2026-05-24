@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import styles from './HomeClient.module.css';
 
-type Status = 'idle' | 'loading' | 'subscribed' | 'denied' | 'unsupported' | 'error' | 'ios-needs-install';
+type Status = 'idle' | 'checking' | 'loading' | 'subscribed' | 'denied' | 'unsupported' | 'error' | 'ios-needs-install';
 
 // Returns 'supported' if iOS 16.4+ installed as PWA, 'needs-install' if iOS but not installed, 'unsupported' if old iOS
 function getIOSPushStatus(): 'not-ios' | 'needs-install' | 'old-ios' | 'ready' {
@@ -28,12 +28,50 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
 }
 
 export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string }) {
-  const [status, setStatus] = useState<Status>('idle');
+  const [status, setStatus] = useState<Status>('checking');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [message, setMessage] = useState('');
   const [iosStatus, setIosStatus] = useState<'not-ios' | 'needs-install' | 'old-ios' | 'ready'>('not-ios');
+  const [confetti, setConfetti] = useState<Array<{ id: number; left?: number; color: string; delay: number; rot: number; size?: number; radius?: number; dx?: number }>>([]);
+  // Countdown to arrival date (12 Sept 2026)
+  const targetDate = new Date(2026, 8, 12); // months are 0-indexed (8 = September)
+  const [daysDiff, setDaysDiff] = useState<number>(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.floor((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  });
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const diff = Math.floor((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      setDaysDiff(diff);
+    };
+    update();
+    const timer = setInterval(update, 60 * 60 * 1000); // update hourly
+    return () => clearInterval(timer);
+  }, []);
+
+  function launchConfetti() {
+    const colors = ['#FF8FB1', '#FFD66B', '#7DE2C9', '#8EC7FF', '#FFD1F0'];
+    const maxDx = typeof window !== 'undefined' ? Math.max(240, Math.floor(window.innerWidth * 0.45)) : 300;
+    const pieces = Array.from({ length: 36 }).map((_, i) => ({
+      id: i,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      delay: Math.floor(Math.random() * 500),
+      rot: Math.floor(Math.random() * 360),
+      size: Math.floor(Math.random() * 10) + 10, // 10-19px
+      radius: Math.floor(Math.random() * 6),
+      dx: Math.floor(Math.random() * (maxDx * 2)) - maxDx, // -maxDx .. +maxDx
+    }));
+    setConfetti(pieces);
+    // remove after animation
+    setTimeout(() => setConfetti([]), 2800);
+  }
 
   const checkExistingSubscription = useCallback(async () => {
+    setStatus('checking');
     const ios = getIOSPushStatus();
     setIosStatus(ios);
 
@@ -57,9 +95,21 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
         if (sub) {
           setIsSubscribed(true);
           setStatus('subscribed');
+          return;
         }
       }
-    } catch {}
+      // if we reached here and no subscription was found, go idle so CTA shows
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        // already handled above, but ensure a sensible default
+        setStatus('unsupported');
+      } else {
+        setStatus('idle');
+      }
+    } catch (e) {
+      // on error, fall back to idle so the user can try to subscribe
+      console.error(e);
+      setStatus('idle');
+    }
   }, []);
 
   useEffect(() => {
@@ -105,6 +155,7 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
       setIsSubscribed(true);
       setStatus('subscribed');
       setMessage('Iscrizione completata con successo.');
+      launchConfetti();
     } catch (err: any) {
       console.error(err);
       setStatus('error');
@@ -139,14 +190,18 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
 
   return (
     <main className={styles.main}>
-      {/* Background grid */}
-      <div className={styles.grid} aria-hidden />
+      {/* Background decorative shapes */}
+      <div className={styles.grid} aria-hidden>
+        <div className={`${styles.bgShape} ${styles.pink}`} aria-hidden />
+        <div className={`${styles.bgShape} ${styles.mint}`} aria-hidden />
+        <div className={`${styles.bgShape} ${styles.yellow}`} aria-hidden />
+      </div>
 
       {/* Header */}
       <header className={`${styles.header} fade-up`}>
         <div className={styles.wordmark}>
-          <span className={styles.dot} />
-          PushCast
+          <span className={styles.dot} role="img" aria-label="bambina">👧</span>
+          Stefania & Simone
         </div>
       </header>
 
@@ -154,22 +209,54 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
       <section className={styles.hero}>
         <div className={`${styles.tagline} fade-up fade-up-delay-1`}>
           <span className={styles.line} />
-          Notifiche push
+          In attesa
           <span className={styles.line} />
         </div>
 
         <h1 className={`${styles.title} fade-up fade-up-delay-2`}>
-          Rimani sempre<br />
-          <em>connesso</em>
+          Stiamo aspettando<br />
+          <em>nostra figlia</em>
         </h1>
 
         <p className={`${styles.subtitle} fade-up fade-up-delay-3`}>
-          Iscriviti per ricevere aggiornamenti in tempo reale direttamente
-          sul tuo dispositivo — laptop, tablet o telefono.
+          Arrivo previsto: <strong>12 settembre 2026</strong>.
         </p>
+
+        <div className={`${styles.countdown} fade-up fade-up-delay-3`} aria-hidden>
+          {typeof daysDiff === 'number' && (() => {
+            const absDays = Math.abs(daysDiff);
+            const isPast = daysDiff < 0;
+            return (
+              <>
+                <div className={styles.countTop}>
+                  <span className={styles.countNum}>{absDays}</span>
+                  <span className={styles.countLabel}>
+                    {isPast
+                      ? `${absDays === 1 ? 'giorno' : 'giorni'} in ritardo`
+                      : `${absDays === 1 ? 'giorno' : 'giorni'} rimanenti`}
+                  </span>
+                </div>
+                {isPast && (
+                  <div className={styles.countSub}>
+                    Se la sta prendendo comoda...
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
 
         {/* Status indicator & CTA */}
         <div className={`${styles.ctaWrapper} fade-up fade-up-delay-4`}>
+          {status === 'checking' && (
+            <div className={styles.statusLoading}>
+              <button className="btn" disabled>
+                <Spinner />
+                Controllo stato...
+              </button>
+            </div>
+          )}
+
           {status === 'ios-needs-install' && (
             <div className={styles.iosInstallCard}>
               <div className={styles.iosInstallTitle}>
@@ -219,7 +306,7 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
             <div className={styles.subscribedState}>
               <div className={`${styles.statusBadge} ${styles.success}`}>
                 <span className={`${styles.indicator} ${styles.pulse}`} />
-                Notifiche attive su questo dispositivo
+                Notifica della nascita attiva su questo dispositivo
               </div>
               <button className="btn" onClick={unsubscribe}>
                 Disiscriviti
@@ -230,7 +317,7 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
           {(status === 'idle' || status === 'error') && (
             <button className="btn btn-primary" onClick={subscribe}>
               <BellIcon />
-              Attiva notifiche
+              Ricevi notifica della nascita
             </button>
           )}
 
@@ -245,32 +332,34 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
             <p className={styles.feedbackMsg}>{message}</p>
           )}
         </div>
+          {/* Confetti */}
+          {confetti.length > 0 && (
+            <div className={styles.confettiContainer} aria-hidden>
+              {confetti.map((p) => (
+                <span
+                  key={p.id}
+                  className={styles.confettiPiece}
+                  style={{
+                    left: `50%`,
+                    backgroundColor: p.color,
+                    animationDelay: `${p.delay}ms`,
+                    ['--rot' as any]: `${p.rot}deg`,
+                    ['--dx' as any]: `${p.dx ?? 0}px`,
+                    width: `${p.size ?? 12}px`,
+                    height: `${Math.round((p.size ?? 12) * 1.25)}px`,
+                    borderRadius: `${p.radius ?? 2}px`,
+                  } as React.CSSProperties}
+                />
+              ))}
+            </div>
+          )}
       </section>
 
-      {/* Info cards */}
-      <section className={`${styles.cards} fade-up fade-up-delay-4`}>
-        <div className={styles.card}>
-          <div className={styles.cardIcon}>⚡</div>
-          <h3>Istantanee</h3>
-          <p>Notifiche consegnate in tempo reale, anche quando il browser è in background.</p>
-        </div>
-        <div className={styles.card}>
-          <div className={styles.cardIcon}>📱</div>
-          <h3>Multi-device</h3>
-          <p>Funziona su Chrome, Firefox, Safari, Edge — desktop e mobile.</p>
-        </div>
-        <div className={styles.card}>
-          <div className={styles.cardIcon}>🔒</div>
-          <h3>Sicure</h3>
-          <p>Cifrate end-to-end tramite protocollo Web Push con chiavi VAPID.</p>
-        </div>
-      </section>
+      {/* Info cards removed as requested */}
 
       {/* Footer */}
       <footer className={styles.footer}>
-        <span className={styles.footerText}>PushCast © {new Date().getFullYear()}</span>
-        <span className={styles.separator}>·</span>
-        <span className={styles.footerText}>Powered by Web Push API</span>
+        <span className={styles.footerText}>Stefania & Simone © {new Date().getFullYear()}</span>
       </footer>
     </main>
   );

@@ -1,4 +1,4 @@
-# PushCast — Web Push Notifications con Next.js + Netlify + MongoDB Atlas
+# Stefania & Simone — Web Push Notifications con Next.js + Netlify + MongoDB Atlas
 
 Sito Next.js per inviare notifiche push a tutti i dispositivi (desktop e mobile), deployato su Netlify con MongoDB Atlas come database.
 

@@ -97,7 +97,10 @@ export default function InviaClient() {
   if (!authed) {
     return (
       <main className={styles.main}>
-        <div className={styles.grid} aria-hidden />
+        <div className={styles.grid} aria-hidden>
+          <div className={`${styles.bgShape} ${styles.pink}`} aria-hidden />
+          <div className={`${styles.bgShape} ${styles.mint}`} aria-hidden />
+        </div>
         <div className={`${styles.authCard} fade-up`}>
           <div className={styles.authIcon}>🔐</div>
           <h1 className={styles.authTitle}>Area riservata</h1>
@@ -138,8 +141,8 @@ export default function InviaClient() {
         {/* Header */}
         <header className={`${styles.header} fade-up`}>
           <div className={styles.wordmark}>
-            <span className={styles.dot} />
-            PushCast
+            <span className={styles.dot} role="img" aria-label="bambina">👧</span>
+            Stefania & Simone
           </div>
           <Link href="/" className={styles.headerLink}>← Home</Link>
         </header>
@@ -216,7 +219,7 @@ export default function InviaClient() {
                 <div className={styles.previewCard}>
                   <div className={styles.previewHeader}>
                     <div className={styles.previewAppIcon} />
-                    <span className={styles.previewAppName}>PushCast</span>
+                    <span className={styles.previewAppName}>Stefania & Simone</span>
                     <span className={styles.previewTime}>adesso</span>
                   </div>
                   <div className={styles.previewTitle}>{title || '—'}</div>

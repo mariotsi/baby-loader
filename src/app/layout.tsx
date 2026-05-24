@@ -15,11 +15,14 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'PushCast',
+  title: 'Stefania & Simone',
   description: 'Notifiche push per tutti i tuoi dispositivi',
   manifest: '/manifest.json',
-  themeColor: '#0a0a0a',
 };
+
+export const viewport = {
+   themeColor: '#0a0a0a',
+ };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
