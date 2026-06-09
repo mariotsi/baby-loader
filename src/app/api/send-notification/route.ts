@@ -33,19 +33,30 @@ export async function POST(req: NextRequest) {
       }
     } else if (type === 'birth') {
       const babyName = (data.babyName || '').toString();
-      const weight = Number(data.weight);
-      const reqLocale = (data.locale && typeof data.locale === 'string') ? data.locale : 'it-IT';
-      const weightText = typeof weight === 'number' && !Number.isNaN(weight)
-        ? new Intl.NumberFormat(reqLocale, { maximumFractionDigits: 3 }).format(weight)
-        : (data.weight || '').toString();
-      const lengthCm = Number(data.lengthCm);
+      const rawWeight = data.weight;
+      const rawLength = data.lengthCm;
       const birthMessage = (data.birthMessage || '').toString();
       const birthDatetime = data.birthDatetime ? new Date(data.birthDatetime) : null;
       const notify = data.notify === undefined ? true : Boolean(data.notify);
 
-      if (Number.isNaN(weight) || Number.isNaN(lengthCm) || !birthDatetime) {
+      // Normalize numeric inputs: accept comma or dot as decimal separator
+      const parseNumber = (v: any) => {
+        if (v === undefined || v === null) return NaN;
+        if (typeof v === 'number') return v;
+        const s = String(v).trim().replace(/,/g, '.');
+        return Number(s);
+      };
+
+      const weightRawNum = parseNumber(rawWeight);
+      const lengthRawNum = parseNumber(rawLength);
+
+      if (Number.isNaN(weightRawNum) || Number.isNaN(lengthRawNum) || !birthDatetime) {
         return NextResponse.json({ error: 'Peso, lunghezza e data/ora sono obbligatori per le notifiche di nascita' }, { status: 400 });
       }
+
+      // Round and store: weight to 3 decimal places, length as integer (0 decimals)
+      const weight = Math.round(weightRawNum * 1000) / 1000;
+      const lengthCm = Math.round(lengthRawNum);
 
       // Save birth record
       const client = await clientPromise;
@@ -56,8 +67,12 @@ export async function POST(req: NextRequest) {
       await births.insertOne({ babyName, weight, lengthCm, birthMessage, birthDatetime, createdAt: new Date() });
 
       // Prepare notification text (format weight with comma as decimal separator)
+      const reqLocale = (data.locale && typeof data.locale === 'string') ? data.locale : 'it-IT';
+      const weightText = new Intl.NumberFormat(reqLocale, { maximumFractionDigits: 3 }).format(weight);
+      const lengthText = new Intl.NumberFormat(reqLocale, { maximumFractionDigits: 0 }).format(lengthCm);
+
       title = babyName ? `È nata ${babyName}!` : `È nata!`;
-      bodyText = `Pesa ${weightText} kg ed è lunga ${lengthCm} cm.`;
+      bodyText = `Pesa ${weightText} kg ed è lunga ${lengthText} cm.`;
       if (birthMessage) bodyText += ` ${birthMessage}`;
       birthData = { babyName, weight, lengthCm, birthMessage };
       // if notify === false we will skip sending notifications

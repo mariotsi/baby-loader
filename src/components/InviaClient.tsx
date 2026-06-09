@@ -253,11 +253,11 @@ export default function InviaClient() {
                 </div>
                 <div className={styles.field}>
                   <label className="label" htmlFor="baby-weight">Peso (kg)</label>
-                  <input id="baby-weight" className="input" type="number" step="0.01" min="0" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="3.25" />
+                  <input id="baby-weight" className="input" type="number" step="0.001" min="0" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="3.25" />
                 </div>
                 <div className={styles.field}>
                   <label className="label" htmlFor="baby-length">Lunghezza (cm)</label>
-                  <input id="baby-length" className="input" type="number" step="0.1" min="0" value={lengthCm} onChange={(e) => setLengthCm(e.target.value)} placeholder="50" />
+                  <input id="baby-length" className="input" type="number" step="1" min="0" value={lengthCm} onChange={(e) => setLengthCm(e.target.value)} placeholder="50" />
                 </div>
                 <div className={styles.field}>
                   <label className="label" htmlFor="baby-datetime">Data e ora</label>
