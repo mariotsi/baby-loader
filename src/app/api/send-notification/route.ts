@@ -16,10 +16,49 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { title, body, url } = await req.json();
+    const data = await req.json();
+    const { type = 'generic', url } = data as any;
 
-    if (!title || !body) {
-      return NextResponse.json({ error: 'Titolo e testo sono obbligatori' }, { status: 400 });
+    // For generic notifications expect title/body
+    let title: string | undefined = undefined;
+    let bodyText: string | undefined = undefined;
+
+    if (type === 'generic') {
+      title = (data.title || '').toString();
+      bodyText = (data.body || '').toString();
+      if (!title || !bodyText) {
+        return NextResponse.json({ error: 'Titolo e testo sono obbligatori' }, { status: 400 });
+      }
+    } else if (type === 'birth') {
+      const babyName = (data.babyName || '').toString();
+      const weight = Number(data.weight);
+      const lengthCm = Number(data.lengthCm);
+      const birthMessage = (data.birthMessage || '').toString();
+      const birthDatetime = data.birthDatetime ? new Date(data.birthDatetime) : null;
+      const notify = data.notify === undefined ? true : Boolean(data.notify);
+
+      if (Number.isNaN(weight) || Number.isNaN(lengthCm) || !birthDatetime) {
+        return NextResponse.json({ error: 'Peso, lunghezza e data/ora sono obbligatori per le notifiche di nascita' }, { status: 400 });
+      }
+
+      // Save birth record
+      const client = await clientPromise;
+      const db = client.db('pushnotify');
+      const births = db.collection('births');
+      // Ensure at most one birth document exists: clear and insert the new one
+      await births.deleteMany({});
+      await births.insertOne({ babyName, weight, lengthCm, birthMessage, birthDatetime, createdAt: new Date() });
+
+      // Prepare notification text
+      title = babyName ? `È nata ${babyName}!` : `È nata!`;
+      bodyText = `Pesa ${weight} kg ed è lunga ${lengthCm} cm.`;
+      if (birthMessage) bodyText += ` ${birthMessage}`;
+      // if notify === false we will skip sending notifications
+      if (!notify) {
+        return NextResponse.json({ success: true, saved: true, sent: 0, message: 'Registrazione aggiornata (no notifica inviata)' });
+      }
+    } else {
+      return NextResponse.json({ error: 'Tipo di notifica non supportato' }, { status: 400 });
     }
 
     const client = await clientPromise;
@@ -34,9 +73,9 @@ export async function POST(req: NextRequest) {
 
     const payload = JSON.stringify({
       title,
-      body,
-      icon: '/icon-192.svg',
-      badge: '/icon-72.svg',
+      body: bodyText,
+      icon: '/icon-192.png',
+      badge: '/icon-72.png',
       url: url || '/',
     });
 
@@ -76,7 +115,9 @@ export async function GET(req: NextRequest) {
     const db = client.db('pushnotify');
     const col = db.collection('subscriptions');
     const count = await col.countDocuments();
-    return NextResponse.json({ count });
+    const births = db.collection('births');
+    const hasBirth = (await births.countDocuments()) > 0;
+    return NextResponse.json({ count, hasBirth });
   } catch (err) {
     return NextResponse.json({ error: 'Errore interno del server' }, { status: 500 });
   }

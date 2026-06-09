@@ -128,7 +128,7 @@ push-notify/
 ├── public/
 │   ├── sw.js              # Service Worker (gestisce push)
 │   ├── manifest.json      # PWA manifest
-│   ├── favicon.svg
+│   ├── favicon.png
 │   ├── icon-72.png        # (da generare)
 │   ├── icon-192.png       # (da generare)
 │   └── icon-512.png       # (da generare)
