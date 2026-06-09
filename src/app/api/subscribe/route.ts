@@ -3,7 +3,7 @@ import clientPromise from '@/lib/mongodb';
 
 export async function POST(req: NextRequest) {
   try {
-    const { subscription } = await req.json();
+    const { subscription, locale } = await req.json();
 
     if (!subscription || !subscription.endpoint) {
       return NextResponse.json({ error: 'Subscription non valida' }, { status: 400 });
@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
       {
         $set: {
           subscription,
+          locale: locale || null,
           updatedAt: new Date(),
         },
         $setOnInsert: {

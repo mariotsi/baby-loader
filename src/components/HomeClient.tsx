@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import styles from './HomeClient.module.css';
+import ConfettiContainer, { ConfettiHandle } from './ConfettiContainer';
 
 type Status = 'idle' | 'checking' | 'loading' | 'subscribed' | 'denied' | 'unsupported' | 'error' | 'ios-needs-install';
 
@@ -32,7 +33,7 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [message, setMessage] = useState('');
   const [iosStatus, setIosStatus] = useState<'not-ios' | 'needs-install' | 'old-ios' | 'ready'>('not-ios');
-  const [confetti, setConfetti] = useState<Array<{ id: number; left?: number; color: string; delay: number; rot: number; size?: number; radius?: number; dx?: number }>>([]);
+  const confettiHandleRef = useRef<ConfettiHandle | null>(null);
   // Countdown to arrival date (12 Sept 2026)
   const targetDate = new Date(2026, 8, 12); // months are 0-indexed (8 = September)
   const [daysDiff, setDaysDiff] = useState<number>(() => {
@@ -53,22 +54,11 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
     return () => clearInterval(timer);
   }, []);
 
-  function launchConfetti() {
-    const colors = ['#FF8FB1', '#FFD66B', '#7DE2C9', '#8EC7FF', '#FFD1F0'];
-    const maxDx = typeof window !== 'undefined' ? Math.max(240, Math.floor(window.innerWidth * 0.45)) : 300;
-    const pieces = Array.from({ length: 36 }).map((_, i) => ({
-      id: i,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      delay: Math.floor(Math.random() * 500),
-      rot: Math.floor(Math.random() * 360),
-      size: Math.floor(Math.random() * 10) + 10, // 10-19px
-      radius: Math.floor(Math.random() * 6),
-      dx: Math.floor(Math.random() * (maxDx * 2)) - maxDx, // -maxDx .. +maxDx
-    }));
-    setConfetti(pieces);
-    // remove after animation
-    setTimeout(() => setConfetti([]), 2800);
-  }
+  // confetti is handled by ConfettiContainer via ref
+
+  // nothing to cleanup here; ConfettiContainer cleans up itself
+
+  // confetti removal handled imperatively in RAF loop
 
   const checkExistingSubscription = useCallback(async () => {
     setStatus('checking');
@@ -143,11 +133,39 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
       });
 
-      // Save to backend
+      // Save to backend, include user's locale when available.
+      // Prefer navigator.languages (ordered). Loop to find 'it-IT' first, then any 'en-...'.
+      // Fallback to 'it-IT'. Normalize short codes when needed.
+      const locale = (() => {
+        if (typeof navigator === 'undefined') return 'it-IT';
+        const langs: string[] = (navigator.languages && navigator.languages.length) ? Array.from(navigator.languages) : [navigator.language || ''];
+        // Normalize and check for exact Italian (it-IT) or generic Italian
+        for (const raw of langs) {
+          if (!raw) continue;
+          const s = String(raw).trim();
+          if (/^it(-|$)/i.test(s)) return 'it-IT';
+        }
+        // Then prefer any en-<region>
+        for (const raw of langs) {
+          if (!raw) continue;
+          const s = String(raw).trim();
+          if (/^en-/i.test(s)) return s;
+          if (/^en$/i.test(s)) return 'en-US';
+        }
+        // As a last attempt, normalize the first language if it's a two-letter code
+        const first = (langs[0] || '').trim();
+        if (/^[a-z]{2}$/i.test(first)) {
+          const code = first.toLowerCase();
+          if (code === 'it') return 'it-IT';
+          if (code === 'en') return 'en-US';
+          return `${code}-${code.toUpperCase()}`;
+        }
+        return 'it-IT';
+      })();
       const res = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription }),
+        body: JSON.stringify({ subscription, locale }),
       });
 
       if (!res.ok) throw new Error('Errore dal server');
@@ -155,7 +173,7 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
       setIsSubscribed(true);
       setStatus('subscribed');
       setMessage('Iscrizione completata con successo.');
-      launchConfetti();
+      confettiHandleRef.current?.launch();
     } catch (err: any) {
       console.error(err);
       setStatus('error');
@@ -333,26 +351,7 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
           )}
         </div>
           {/* Confetti */}
-          {confetti.length > 0 && (
-            <div className={styles.confettiContainer} aria-hidden>
-              {confetti.map((p) => (
-                <span
-                  key={p.id}
-                  className={styles.confettiPiece}
-                  style={{
-                    left: `50%`,
-                    backgroundColor: p.color,
-                    animationDelay: `${p.delay}ms`,
-                    ['--rot' as any]: `${p.rot}deg`,
-                    ['--dx' as any]: `${p.dx ?? 0}px`,
-                    width: `${p.size ?? 12}px`,
-                    height: `${Math.round((p.size ?? 12) * 1.25)}px`,
-                    borderRadius: `${p.radius ?? 2}px`,
-                  } as React.CSSProperties}
-                />
-              ))}
-            </div>
-          )}
+          <ConfettiContainer ref={confettiHandleRef} />
       </section>
 
       {/* Info cards removed as requested */}

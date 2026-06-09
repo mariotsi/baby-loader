@@ -22,6 +22,8 @@ export async function POST(req: NextRequest) {
     // For generic notifications expect title/body
     let title: string | undefined = undefined;
     let bodyText: string | undefined = undefined;
+    // If this is a birth notification, keep data to allow per-subscriber localization
+    let birthData: { babyName?: string; weight?: number; lengthCm?: number; birthMessage?: string } | null = null;
 
     if (type === 'generic') {
       title = (data.title || '').toString();
@@ -32,6 +34,10 @@ export async function POST(req: NextRequest) {
     } else if (type === 'birth') {
       const babyName = (data.babyName || '').toString();
       const weight = Number(data.weight);
+      const reqLocale = (data.locale && typeof data.locale === 'string') ? data.locale : 'it-IT';
+      const weightText = typeof weight === 'number' && !Number.isNaN(weight)
+        ? new Intl.NumberFormat(reqLocale, { maximumFractionDigits: 3 }).format(weight)
+        : (data.weight || '').toString();
       const lengthCm = Number(data.lengthCm);
       const birthMessage = (data.birthMessage || '').toString();
       const birthDatetime = data.birthDatetime ? new Date(data.birthDatetime) : null;
@@ -49,10 +55,11 @@ export async function POST(req: NextRequest) {
       await births.deleteMany({});
       await births.insertOne({ babyName, weight, lengthCm, birthMessage, birthDatetime, createdAt: new Date() });
 
-      // Prepare notification text
+      // Prepare notification text (format weight with comma as decimal separator)
       title = babyName ? `È nata ${babyName}!` : `È nata!`;
-      bodyText = `Pesa ${weight} kg ed è lunga ${lengthCm} cm.`;
+      bodyText = `Pesa ${weightText} kg ed è lunga ${lengthCm} cm.`;
       if (birthMessage) bodyText += ` ${birthMessage}`;
+      birthData = { babyName, weight, lengthCm, birthMessage };
       // if notify === false we will skip sending notifications
       if (!notify) {
         return NextResponse.json({ success: true, saved: true, sent: 0, message: 'Registrazione aggiornata (no notifica inviata)' });
@@ -71,17 +78,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, sent: 0, message: 'Nessun iscritto trovato' });
     }
 
-    const payload = JSON.stringify({
-      title,
-      body: bodyText,
-      icon: '/icon-192.png',
-      badge: '/icon-72.png',
-      url: url || '/',
-    });
-
     const results = await Promise.allSettled(
       subscriptions.map(async (doc) => {
         try {
+          // If this was a birth notification, format numbers using the subscriber's locale when available
+          let payloadObj: any;
+          if (birthData) {
+            const locale = (doc.locale && typeof doc.locale === 'string') ? doc.locale : 'it-IT';
+            const isEn = /^en/i.test(locale);
+            const weightTextLocal = typeof birthData.weight === 'number' && !Number.isNaN(birthData.weight)
+              ? new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(birthData.weight)
+              : (birthData.weight || '').toString();
+            const titleLocal = isEn
+              ? (birthData.babyName ? `It's a girl, ${birthData.babyName}!` : `It's a girl!`)
+              : (birthData.babyName ? `È nata ${birthData.babyName}!` : `È nata!`);
+            let bodyLocal = isEn
+              ? `Weighs ${weightTextLocal} kg and is ${birthData.lengthCm} cm long.`
+              : `Pesa ${weightTextLocal} kg ed è lunga ${birthData.lengthCm} cm.`;
+            // Append birthMessage: if recipient is English, prefix the Italian flag emoji before the admin message
+            if (birthData.birthMessage) {
+              bodyLocal += isEn ? ` 🇮🇹 ${birthData.birthMessage}` : ` ${birthData.birthMessage}`;
+            }
+            payloadObj = { title: titleLocal, body: bodyLocal, icon: '/icon-192.png', badge: '/icon-72.png', url: url || '/' };
+          } else {
+            payloadObj = { title, body: bodyText, icon: '/icon-192.png', badge: '/icon-72.png', url: url || '/' };
+          }
+
+          const payload = JSON.stringify(payloadObj);
           await webpush.sendNotification(doc.subscription, payload);
           return { endpoint: doc.subscription.endpoint, status: 'sent' };
         } catch (err: any) {

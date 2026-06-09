@@ -181,7 +181,7 @@
 
 /* Confetti styles */
 .confettiContainer {
-  position: absolute;
+  position: fixed; /* cover the viewport so left: <px> is relative to viewport */
   inset: 0;
   pointer-events: none;
   overflow: visible;
@@ -191,14 +191,15 @@
 
 .confettiPiece {
   position: absolute;
-  top: 12%;
-  left: 50%;
-  transform: translateX(-50%) translateY(0) rotate(var(--rot));
+  top: -50px;
+  transform: translateY(0) rotate(var(--rot));
   width: 12px;
   height: 16px;
   border-radius: 2px;
   opacity: 1;
-  animation: confetti-fall 2600ms cubic-bezier(0.22, 0.9, 0.16, 1) forwards;
+  animation-name: confetti-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
   box-shadow: 0 6px 12px rgba(0,0,0,0.12);
   filter: saturate(1.35) drop-shadow(0 6px 14px rgba(0,0,0,0.10));
   will-change: transform, opacity;
@@ -206,11 +207,11 @@
 
 @keyframes confetti-fall {
   0% {
-    transform: translateX(-50%) translateY(0) rotate(var(--rot));
+    transform: translateY(0) rotate(var(--rot));
     opacity: 1;
   }
   100% {
-    transform: translateX(calc(-50% + var(--dx))) translateY(120vh) rotate(calc(var(--rot) + 540deg));
+    transform: translateY(120vh) translateX(var(--dx)) rotate(calc(var(--rot) + 540deg));
     opacity: 0;
   }
 }
