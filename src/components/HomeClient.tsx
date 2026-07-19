@@ -233,7 +233,7 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
 
         <h1 className={`${styles.title} fade-up fade-up-delay-2`}>
           Stiamo aspettando<br />
-          <em>nostra figlia</em>
+          <em>Emma</em>
         </h1>
 
         <p className={`${styles.subtitle} fade-up fade-up-delay-3`}>
