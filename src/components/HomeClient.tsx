@@ -3,55 +3,80 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import styles from './HomeClient.module.css';
 import ConfettiContainer, { ConfettiHandle } from './ConfettiContainer';
+import { decodeVapidKey, VapidKeyError } from '@/lib/vapid';
 
 type Status = 'idle' | 'checking' | 'loading' | 'subscribed' | 'denied' | 'unsupported' | 'error' | 'ios-needs-install';
+type IOSPushStatus = 'not-ios' | 'needs-install' | 'old-ios' | 'other-browser' | 'ready';
 
-// Returns 'supported' if iOS 16.4+ installed as PWA, 'needs-install' if iOS but not installed, 'unsupported' if old iOS
-function getIOSPushStatus(): 'not-ios' | 'needs-install' | 'old-ios' | 'ready' {
-  if (typeof navigator === 'undefined') return 'not-ios';
+// Returns 'ready' if push can be used, 'needs-install' if iOS/iPadOS Safari is
+// not running as an installed PWA, 'old-ios' if the OS predates push support.
+function getIOSPushStatus(): IOSPushStatus {
+  if (typeof navigator === 'undefined' || typeof window === 'undefined') {
+    return 'not-ios';
+  }
   const ua = navigator.userAgent;
-  const isIOS = /iPad|iPhone|iPod/.test(ua) && !(ua.includes('CriOS') && false); // CriOS still needs PWA
-  if (!isIOS) return 'not-ios';
-  const match = ua.match(/OS (\d+)_(\d+)/);
-  const major = match ? parseInt(match[1], 10) : 0;
-  const minor = match ? parseInt(match[2], 10) : 0;
-  const version = major + minor / 10;
-  if (version < 16.4) return 'old-ios';
-  const isInstalled = (navigator as any).standalone === true;
-  return isInstalled ? 'ready' : 'needs-install';
+
+  // iPadOS 13+ reports a desktop Mac UA, so detect it via touch support.
+  const isIPadOS =
+    /Macintosh/.test(ua) && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || isIPadOS;
+  if (!isIOS) {
+    return 'not-ios';
+  }
+
+  // "OS 16_4" on iPhone, "Version/16.4" on the iPadOS desktop UA.
+  const match = ua.match(/OS (\d+)[_.](\d+)/) || ua.match(/Version\/(\d+)\.(\d+)/);
+  if (match) {
+    const major = parseInt(match[1], 10);
+    const minor = parseInt(match[2], 10);
+    if (major < 16 || (major === 16 && minor < 4)) {
+      return 'old-ios';
+    }
+  }
+
+  const isInstalled =
+    (navigator as any).standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches;
+  if (isInstalled) {
+    return 'ready';
+  }
+
+  // Third-party iOS browsers cannot be installed to the Home Screen at all.
+  const isThirdPartyBrowser = /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+  return isThirdPartyBrowser ? 'other-browser' : 'needs-install';
 }
 
-function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = atob(base64);
-  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0))).buffer as ArrayBuffer;
+// Arrival date: 12 September 2026 (months are 0-indexed).
+const TARGET_DATE = new Date(2026, 8, 12);
+
+function daysUntilTarget(): number {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((TARGET_DATE.getTime() - today.getTime()) / 86_400_000);
 }
 
 export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string }) {
   const [status, setStatus] = useState<Status>('checking');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [message, setMessage] = useState('');
-  const [iosStatus, setIosStatus] = useState<'not-ios' | 'needs-install' | 'old-ios' | 'ready'>('not-ios');
+  const [iosStatus, setIosStatus] = useState<IOSPushStatus>('not-ios');
   const confettiHandleRef = useRef<ConfettiHandle | null>(null);
-  // Countdown to arrival date (12 Sept 2026)
-  const targetDate = new Date(2026, 8, 12); // months are 0-indexed (8 = September)
-  const [daysDiff, setDaysDiff] = useState<number>(() => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return Math.floor((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  });
+  // Starts as null: computing it during render would use the server timezone
+  // and cause a hydration mismatch.
+  const [daysDiff, setDaysDiff] = useState<number | null>(null);
 
+  // Re-run exactly at the next local midnight rather than polling hourly, so
+  // the counter is never up to an hour stale.
   useEffect(() => {
-    const update = () => {
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      setDaysDiff(daysUntilTarget());
       const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const diff = Math.floor((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      setDaysDiff(diff);
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      timer = setTimeout(schedule, nextMidnight.getTime() - now.getTime() + 1000);
     };
-    update();
-    const timer = setInterval(update, 60 * 60 * 1000); // update hourly
-    return () => clearInterval(timer);
+    schedule();
+    return () => clearTimeout(timer);
   }, []);
 
   // confetti is handled by ConfettiContainer via ref
@@ -69,7 +94,7 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
       setStatus('ios-needs-install');
       return;
     }
-    if (ios === 'old-ios') {
+    if (ios === 'old-ios' || ios === 'other-browser') {
       setStatus('unsupported');
       return;
     }
@@ -112,6 +137,18 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
       return;
     }
 
+    // Decode before touching the browser APIs: an invalid key would otherwise
+    // surface as an opaque "applicationServerKey is not valid".
+    let applicationServerKey: ArrayBuffer;
+    try {
+      applicationServerKey = decodeVapidKey(vapidPublicKey);
+    } catch (err) {
+      console.error(err);
+      setStatus('error');
+      setMessage(err instanceof VapidKeyError ? err.message : 'Chiave VAPID non valida.');
+      return;
+    }
+
     setStatus('loading');
     setMessage('');
 
@@ -130,34 +167,50 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
       // Subscribe to push
       const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        applicationServerKey,
       });
 
       // Save to backend, include user's locale when available.
       // Prefer navigator.languages (ordered). Loop to find 'it-IT' first, then any 'en-...'.
       // Fallback to 'it-IT'. Normalize short codes when needed.
       const locale = (() => {
-        if (typeof navigator === 'undefined') return 'it-IT';
+        if (typeof navigator === 'undefined') {
+          return 'it-IT';
+        }
         const langs: string[] = (navigator.languages && navigator.languages.length) ? Array.from(navigator.languages) : [navigator.language || ''];
         // Normalize and check for exact Italian (it-IT) or generic Italian
         for (const raw of langs) {
-          if (!raw) continue;
+          if (!raw) {
+            continue;
+          }
           const s = String(raw).trim();
-          if (/^it(-|$)/i.test(s)) return 'it-IT';
+          if (/^it(-|$)/i.test(s)) {
+            return 'it-IT';
+          }
         }
         // Then prefer any en-<region>
         for (const raw of langs) {
-          if (!raw) continue;
+          if (!raw) {
+            continue;
+          }
           const s = String(raw).trim();
-          if (/^en-/i.test(s)) return s;
-          if (/^en$/i.test(s)) return 'en-US';
+          if (/^en-/i.test(s)) {
+            return s;
+          }
+          if (/^en$/i.test(s)) {
+            return 'en-US';
+          }
         }
         // As a last attempt, normalize the first language if it's a two-letter code
         const first = (langs[0] || '').trim();
         if (/^[a-z]{2}$/i.test(first)) {
           const code = first.toLowerCase();
-          if (code === 'it') return 'it-IT';
-          if (code === 'en') return 'en-US';
+          if (code === 'it') {
+            return 'it-IT';
+          }
+          if (code === 'en') {
+            return 'en-US';
+          }
           return `${code}-${code.toUpperCase()}`;
         }
         return 'it-IT';
@@ -168,7 +221,9 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
         body: JSON.stringify({ subscription, locale }),
       });
 
-      if (!res.ok) throw new Error('Errore dal server');
+      if (!res.ok) {
+        throw new Error('Errore dal server');
+      }
 
       setIsSubscribed(true);
       setStatus('subscribed');
@@ -185,14 +240,18 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
     setStatus('loading');
     try {
       const reg = await navigator.serviceWorker.getRegistration('/sw.js');
-      if (!reg) throw new Error('Service worker non trovato');
+      if (!reg) {
+        throw new Error('Service worker non trovato');
+      }
 
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
+        const { endpoint, keys } = sub.toJSON() as { endpoint: string; keys: Record<string, string> };
         await fetch('/api/subscribe', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ endpoint: sub.endpoint }),
+          // Keys prove this device owns the subscription.
+          body: JSON.stringify({ endpoint, keys }),
         });
         await sub.unsubscribe();
       }
@@ -309,7 +368,9 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
               <span className={styles.indicator} />
               {iosStatus === 'old-ios'
                 ? 'Aggiorna iOS alla versione 16.4 o superiore per le notifiche push'
-                : 'Il tuo browser non supporta le notifiche push'}
+                : iosStatus === 'other-browser'
+                  ? 'Su iPhone e iPad le notifiche funzionano solo con Safari: riapri questa pagina in Safari'
+                  : 'Il tuo browser non supporta le notifiche push'}
             </div>
           )}
 

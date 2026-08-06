@@ -1,29 +1,35 @@
 import { MongoClient } from 'mongodb';
 
-const uri = process.env.MONGODB_URI!;
-
-if (!uri) {
-  throw new Error('Please define MONGODB_URI in .env.local');
-}
-
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
-
 declare global {
   // eslint-disable-next-line no-var
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
-if (process.env.NODE_ENV === 'development') {
-  // In dev, reuse the connection across hot reloads
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(uri);
-    global._mongoClientPromise = client.connect();
-  }
-  clientPromise = global._mongoClientPromise;
-} else {
-  client = new MongoClient(uri);
-  clientPromise = client.connect();
-}
+let clientPromise: Promise<MongoClient> | undefined;
 
-export default clientPromise;
+/**
+ * Connessione lazy: l'assenza di MONGODB_URI deve fallire alla prima query,
+ * non all'import del modulo, altrimenti `next build` non riesce nemmeno a
+ * raccogliere i dati delle route quando le env var non sono disponibili.
+ */
+export function getMongoClient(): Promise<MongoClient> {
+  const uri = process.env.MONGODB_URI;
+
+  if (!uri) {
+    return Promise.reject(new Error('Please define MONGODB_URI in .env.local'));
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    // In dev, reuse the connection across hot reloads
+    if (!global._mongoClientPromise) {
+      global._mongoClientPromise = new MongoClient(uri).connect();
+    }
+    return global._mongoClientPromise;
+  }
+
+  if (!clientPromise) {
+    clientPromise = new MongoClient(uri).connect();
+  }
+
+  return clientPromise;
+}

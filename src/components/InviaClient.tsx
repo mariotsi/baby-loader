@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import styles from './InviaClient.module.css';
+import { formatBirthNotification, type BirthData } from '@/lib/birthNotification';
 
 type SendStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -28,38 +29,47 @@ export default function InviaClient() {
   const [pendingPayload, setPendingPayload] = useState<any | null>(null);
   const [hasExistingBirth, setHasExistingBirth] = useState(false);
 
-  const storedPassword = typeof window !== 'undefined' ? sessionStorage.getItem('admin-pw') : null;
-
-  useEffect(() => {
-    if (storedPassword) {
-      verifyPassword(storedPassword);
+  // Resume an existing session: the credential lives in an httpOnly cookie, so
+  // it is sent automatically and is never readable from JS.
+  const loadStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/send-notification');
+      if (!res.ok) {
+        return false;
+      }
+      const data = await res.json();
+      setAuthed(true);
+      setSubscriberCount(data.count);
+      setHasExistingBirth(Boolean(data.hasBirth));
+      return true;
+    } catch {
+      return false;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const verifyPassword = async (pw: string) => {
-    try {
-      const res = await fetch('/api/send-notification', {
-        headers: { 'x-admin-password': pw },
-      });
-      if (res.ok) {
-        setAuthed(true);
-        sessionStorage.setItem('admin-pw', pw);
-        const data = await res.json();
-        setSubscriberCount(data.count);
-        setHasExistingBirth(Boolean((data as any).hasBirth));
-      } else {
-        setAuthError('Password non corretta');
-      }
-    } catch {
-      setAuthError('Errore di connessione');
-    }
-  };
+  useEffect(() => {
+    loadStatus();
+  }, [loadStatus]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
-    await verifyPassword(password);
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setAuthError(data.error || 'Password non corretta');
+        return;
+      }
+      setPassword('');
+      await loadStatus();
+    } catch {
+      setAuthError('Errore di connessione');
+    }
   };
 
   const handleSend = async (e: React.FormEvent) => {
@@ -67,9 +77,13 @@ export default function InviaClient() {
 
     // validation depending on notification type
     if (notifType === 'generic') {
-      if (!title.trim() || !body.trim()) return;
+      if (!title.trim() || !body.trim()) {
+        return;
+      }
     } else {
-      if (!babyName.trim() || !weight || !lengthCm || !birthDatetime) return;
+      if (!babyName.trim() || !weight || !lengthCm || !birthDatetime) {
+        return;
+      }
     }
     const payload: any = { type: notifType, url };
     if (notifType === 'generic') {
@@ -103,19 +117,17 @@ export default function InviaClient() {
     setSendStatus('loading');
     setResult(null);
     try {
-      const pw = sessionStorage.getItem('admin-pw') || password;
       const res = await fetch('/api/send-notification', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-password': pw,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || 'Errore dal server');
+      if (!res.ok) {
+        throw new Error(data.error || 'Errore dal server');
+      }
 
       setSendStatus('success');
       setResult(data);
@@ -135,14 +147,18 @@ export default function InviaClient() {
   };
 
   const confirmAndSend = async () => {
-    if (!pendingPayload) return;
+    if (!pendingPayload) {
+      return;
+    }
     setConfirmOpen(false);
     await performSend({ ...pendingPayload, notify: true });
     setPendingPayload(null);
   };
 
   const overwriteOnly = async () => {
-    if (!pendingPayload) return;
+    if (!pendingPayload) {
+      return;
+    }
     setConfirmOpen(false);
     await performSend({ ...pendingPayload, notify: false });
     setPendingPayload(null);
@@ -167,6 +183,11 @@ export default function InviaClient() {
     setSendStatus('idle');
     setResult(null);
   };
+
+  const sentPreview =
+    notifType === 'birth'
+      ? formatBirthNotification({ babyName, weight, lengthCm, birthMessage })
+      : { title, body };
 
   // Auth screen
   if (!authed) {
@@ -383,17 +404,11 @@ export default function InviaClient() {
               </div>
             </div>
             <div className={styles.successPreview}>
-              <strong>
-                {notifType === 'birth' ? `È nata${babyName ? ' ' + babyName : ''}!` : title}
-              </strong>
-              <p>
-                {notifType === 'birth'
-                  ? `Pesa ${weight} kg ed è lunga ${lengthCm} cm. ${birthMessage || 'Sta benissimo con la sua mamma.'}`
-                  : body}
-              </p>
+              <strong>{sentPreview.title}</strong>
+              <p>{sentPreview.body}</p>
             </div>
             <button className="btn btn-primary" onClick={resetForm}>
-              Invia un'altra
+              Invia un&apos;altra
             </button>
           </div>
         )}
@@ -449,11 +464,12 @@ function Spinner() {
   );
 }
 
-function NotificationPreview({ notifType, payload, title, body }: { notifType: 'generic' | 'birth'; payload?: any; title?: string; body?: string }) {
-  const isBirth = notifType === 'birth';
-  const p = payload ?? {};
-  const previewTitle = isBirth ? `È nata${p?.babyName ? ' ' + p.babyName : ''}!` : (title || '—');
-  const previewBody = isBirth ? `Pesa ${p?.weight ?? '—'} kg ed è lunga ${p?.lengthCm ?? '—'} cm. ${p?.birthMessage ?? ''}` : (body || '—');
+function NotificationPreview({ notifType, payload, title, body }: { notifType: 'generic' | 'birth'; payload?: BirthData; title?: string; body?: string }) {
+  // Reuses the exact same formatter as the server, so the preview can never
+  // drift from what subscribers actually receive.
+  const birth = notifType === 'birth' ? formatBirthNotification(payload ?? {}) : null;
+  const previewTitle = birth ? birth.title : (title || '—');
+  const previewBody = birth ? birth.body : (body || '—');
 
   return (
     <div className={styles.preview}>

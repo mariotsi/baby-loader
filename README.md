@@ -63,23 +63,30 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY=BExamplePublicKey...
 VAPID_PRIVATE_KEY=ExamplePrivateKey...
 VAPID_EMAIL=mailto:tu@email.com
 ADMIN_PASSWORD=unaPasswordSicura123
+# Opzionale: firma il cookie di sessione admin. Se assente si usa ADMIN_PASSWORD.
+SESSION_SECRET=unSegretoLungoECasuale
 ```
 
 ### 5. Genera le icone
 
-```bash
-node scripts/generate-icons.js
-```
+Gli SVG sorgente sono in `public/`. Per rigenerare i PNG:
 
-Poi converti gli SVG in PNG (usa [svgtopng.com](https://svgtopng.com)) e mettili in `public/` come:
-- `public/icon-72.png`
-- `public/icon-192.png`
-- `public/icon-512.png`
+```bash
+npm run gen-icons
+```
 
 ### 6. Sviluppo locale
 
 ```bash
 npm run dev
+```
+
+Controlli disponibili:
+
+```bash
+npm run lint       # ESLint (next/core-web-vitals)
+npm run typecheck  # tsc --noEmit
+npm test           # test del formatter delle notifiche
 ```
 
 Apri [localhost:3000](http://localhost:3000).
@@ -117,6 +124,7 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY
 VAPID_PRIVATE_KEY
 VAPID_EMAIL
 ADMIN_PASSWORD
+SESSION_SECRET
 ```
 
 ---
@@ -171,27 +179,41 @@ Salva o aggiorna una subscription su MongoDB.
 ```
 
 ### `DELETE /api/subscribe`
-Rimuove una subscription.
+Rimuove una subscription. Le `keys` servono come prova di possesso.
 
 ```json
-{ "endpoint": "https://..." }
+{ "endpoint": "https://...", "keys": { "p256dh": "...", "auth": "..." } }
+```
+
+### `POST /api/admin/login`
+Verifica `ADMIN_PASSWORD` e imposta il cookie di sessione `admin-session`
+(`httpOnly`, 8h). `DELETE` sullo stesso path fa logout.
+
+```json
+{ "password": "..." }
 ```
 
 ### `POST /api/send-notification`
-Invia notifica push a tutti gli iscritti. Richiede header `x-admin-password`.
+Invia notifica push a tutti gli iscritti. Richiede il cookie di sessione admin.
 
 ```json
 { "title": "Titolo", "body": "Testo della notifica", "url": "/" }
 ```
 
 ### `GET /api/send-notification`
-Restituisce il numero di iscritti attivi. Richiede header `x-admin-password`.
+Restituisce il numero di iscritti attivi. Richiede il cookie di sessione admin.
 
 ---
 
 ## Note Sicurezza
 
-- La pagina `/invia` è protetta da password semplice via `ADMIN_PASSWORD`
+- La pagina `/invia` è protetta da password semplice via `ADMIN_PASSWORD`; il login
+  crea un cookie di sessione `httpOnly` firmato (8h), che è l'unica credenziale
+  accettata dalle API admin: la password non viene mai salvata nel browser né
+  reinviata a ogni richiesta
+- Login e API sono rate-limited per IP (best effort, in-process)
+- Gli endpoint push accettati sono limitati ai domini dei push service ufficiali,
+  per evitare che il server venga usato come proxy HTTP (SSRF)
 - Per produzione considera l'aggiunta di autenticazione più robusta (NextAuth, Clerk, ecc.)
 - Le chiavi VAPID `PRIVATE_KEY` e `ADMIN_PASSWORD` non vanno mai committate
 - MongoDB Atlas: usa un utente con permessi solo sul database `pushnotify`

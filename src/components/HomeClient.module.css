@@ -95,7 +95,7 @@
   font-size: 13px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent-2);
+  color: var(--accent-2-ink);
   margin-bottom: 32px;
   font-weight: 600;
 }
@@ -123,7 +123,7 @@
   display: block;
   margin-top: 20px;
   font-style: normal;
-  color: var(--accent);
+  color: var(--accent-ink);
   background: linear-gradient(90deg, rgba(255,143,177,0.12), rgba(142,199,255,0.08));
   padding: 6px 10px;
   border-radius: 12px;
@@ -163,7 +163,7 @@
   font-family: var(--font-display);
   font-size: 40px;
   line-height: 1;
-  color: var(--accent);
+  color: var(--accent-ink);
   font-weight: 700;
 }
 
@@ -179,41 +179,15 @@
   color: var(--text-3);
 }
 
-/* Confetti styles */
-.confettiContainer {
-  position: fixed; /* cover the viewport so left: <px> is relative to viewport */
+/* Confetti: a single canvas driven by canvas-confetti, instead of hundreds of
+   animated DOM nodes. */
+.confettiCanvas {
+  position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
-  overflow: visible;
   z-index: 99999;
-}
-
-
-.confettiPiece {
-  position: absolute;
-  top: -50px;
-  transform: translateY(0) rotate(var(--rot));
-  width: 12px;
-  height: 16px;
-  border-radius: 2px;
-  opacity: 1;
-  animation-name: confetti-fall;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
-  box-shadow: 0 6px 12px rgba(0,0,0,0.12);
-  filter: saturate(1.35) drop-shadow(0 6px 14px rgba(0,0,0,0.10));
-  will-change: transform, opacity;
-}
-
-@keyframes confetti-fall {
-  0% {
-    transform: translateY(0) rotate(var(--rot));
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(120vh) translateX(var(--dx)) rotate(calc(var(--rot) + 540deg));
-    opacity: 0;
-  }
 }
 
 /* CTA */
@@ -246,19 +220,19 @@
 .statusBadge.success {
   background: rgba(126, 200, 164, 0.08);
   border-color: rgba(126, 200, 164, 0.3);
-  color: var(--success);
+  color: var(--success-ink);
 }
 
 .statusBadge.error {
   background: rgba(232, 124, 124, 0.08);
   border-color: rgba(232, 124, 124, 0.3);
-  color: var(--error);
+  color: var(--error-ink);
 }
 
 .statusBadge.warning {
   background: rgba(232, 184, 124, 0.08);
   border-color: rgba(232, 184, 124, 0.3);
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 
 .indicator {
@@ -296,7 +270,7 @@
 .iosInstallTitle {
   font-family: var(--font-display);
   font-size: 18px;
-  color: var(--accent);
+  color: var(--accent-ink-sm);
   margin-bottom: 12px;
   display: flex;
   align-items: center;
@@ -339,7 +313,7 @@
   border-radius: 50%;
   background: rgba(232, 213, 163, 0.12);
   border: 1px solid rgba(232, 213, 163, 0.3);
-  color: var(--accent);
+  color: var(--accent-ink-sm);
   font-size: 11px;
   font-weight: 500;
   display: flex;
