@@ -60,7 +60,13 @@ export async function POST(req: NextRequest) {
     let title: string | undefined;
     let bodyText: string | undefined;
     // Kept when the payload must be localized per subscriber.
-    let birthData: { babyName: string; weight: number; lengthCm: number; birthMessage: string } | null = null;
+    let birthData: {
+      babyName: string;
+      weight: number;
+      lengthCm: number;
+      birthMessage: string;
+      birthMessageEn: string;
+    } | null = null;
 
     if (type === 'generic') {
       title = String(data.title ?? '').trim();
@@ -71,6 +77,7 @@ export async function POST(req: NextRequest) {
     } else if (type === 'birth') {
       const babyName = String(data.babyName ?? '').trim();
       const birthMessage = String(data.birthMessage ?? '').trim();
+      const birthMessageEn = String(data.birthMessageEn ?? '').trim();
       const weightRaw = parseNumber(data.weight);
       const lengthRaw = parseNumber(data.lengthCm);
       const birthDatetime = data.birthDatetime ? new Date(data.birthDatetime) : null;
@@ -97,11 +104,11 @@ export async function POST(req: NextRequest) {
       // the collection empty.
       await db.collection('births').replaceOne(
         { _id: 'birth' as any },
-        { babyName, weight, lengthCm, birthMessage, birthDatetime, updatedAt: new Date() },
+        { babyName, weight, lengthCm, birthMessage, birthMessageEn, birthDatetime, updatedAt: new Date() },
         { upsert: true }
       );
 
-      birthData = { babyName, weight, lengthCm, birthMessage };
+      birthData = { babyName, weight, lengthCm, birthMessage, birthMessageEn };
 
       // No cache to invalidate: the home page is rendered on every request and
       // reads this document directly.

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import styles from './HomeClient.module.css';
 import { useLang } from './LangProvider';
 import type { BirthRecord } from '@/lib/birthRecord';
+import { localizedBirthMessage } from '@/lib/birthNotification';
 import {
   ageInDays,
   ageLabel,
@@ -31,6 +32,8 @@ export default function BornHero({ birth, onReplay }: { birth: BirthRecord; onRe
     schedule();
     return () => clearTimeout(timer);
   }, [birth.birthDatetime]);
+
+  const message = localizedBirthMessage(lang, birth.birthMessage, birth.birthMessageEn);
 
   return (
     <>
@@ -69,8 +72,8 @@ export default function BornHero({ birth, onReplay }: { birth: BirthRecord; onRe
         </div>
       </dl>
 
-      {birth.birthMessage && (
-        <p className={`${styles.birthMessage} fade-up fade-up-delay-4`}>{birth.birthMessage}</p>
+      {message && (
+        <p className={`${styles.birthMessage} fade-up fade-up-delay-4`}>{message}</p>
       )}
 
       <button type="button" className={`btn ${styles.replayBtn} fade-up fade-up-delay-4`} onClick={onReplay}>

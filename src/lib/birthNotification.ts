@@ -1,8 +1,11 @@
+import type { Lang } from './i18n';
+
 export type BirthData = {
   babyName?: string;
   weight?: number | string | null;
   lengthCm?: number | string | null;
   birthMessage?: string;
+  birthMessageEn?: string;
 };
 
 /** Accepts comma or dot as decimal separator. */
@@ -25,6 +28,27 @@ function formatNumber(value: unknown, locale: string, maximumFractionDigits: num
 }
 
 /**
+ * The same rule in the notification and on the page: the English text when the
+ * parents wrote one, otherwise the Italian one prefixed with its flag, so an
+ * English reader understands why the language just changed.
+ */
+export function localizedBirthMessage(
+  lang: Lang,
+  italian: string | undefined,
+  english: string | undefined
+): string {
+  const it = italian?.trim() ?? '';
+  const en = english?.trim() ?? '';
+  if (lang !== 'en') {
+    return it;
+  }
+  if (en) {
+    return en;
+  }
+  return it ? `\u{1F1EE}\u{1F1F9} ${it}` : '';
+}
+
+/**
  * Single source of truth for the birth notification copy. Used by the API when
  * sending pushes and by the admin UI previews, so they can no longer diverge.
  */
@@ -42,10 +66,9 @@ export function formatBirthNotification(data: BirthData, locale = 'it-IT') {
     ? `Weighs ${weightText} kg and is ${lengthText} cm long.`
     : `Pesa ${weightText} kg ed è lunga ${lengthText} cm.`;
 
-  const message = data.birthMessage?.trim();
+  const message = localizedBirthMessage(isEn ? 'en' : 'it', data.birthMessage, data.birthMessageEn);
   if (message) {
-    // Flag the message as originally Italian for non-Italian recipients.
-    body += isEn ? ` 🇮🇹 ${message}` : ` ${message}`;
+    body += ` ${message}`;
   }
 
   return { title, body };

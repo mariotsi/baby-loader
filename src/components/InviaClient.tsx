@@ -22,6 +22,7 @@ export default function InviaClient() {
   const [lengthCm, setLengthCm] = useState<string>('');
   const [birthDatetime, setBirthDatetime] = useState<string>('');
   const [birthMessage, setBirthMessage] = useState<string>('Mamma, bimba (e papà) stanno bene!');
+  const [birthMessageEn, setBirthMessageEn] = useState<string>('');
   const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
   const [result, setResult] = useState<{ sent?: number; failed?: number; total?: number; message?: string } | null>(null);
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
@@ -100,6 +101,7 @@ export default function InviaClient() {
         payload.birthDatetime = birthDatetime;
       }
       payload.birthMessage = birthMessage.trim();
+      payload.birthMessageEn = birthMessageEn.trim();
     }
 
     // For birth notifications show a confirmation modal first
@@ -186,7 +188,7 @@ export default function InviaClient() {
 
   const sentPreview =
     notifType === 'birth'
-      ? formatBirthNotification({ babyName, weight, lengthCm, birthMessage })
+      ? formatBirthNotification({ babyName, weight, lengthCm, birthMessage, birthMessageEn })
       : { title, body };
 
   // Auth screen
@@ -285,8 +287,13 @@ export default function InviaClient() {
                   <input id="baby-datetime" className="input" type="datetime-local" value={birthDatetime} onChange={(e) => setBirthDatetime(e.target.value)} />
                 </div>
                 <div className={styles.field}>
-                  <label className="label" htmlFor="baby-msg">Messaggio opzionale</label>
+                  <label className="label" htmlFor="baby-msg">Messaggio opzionale (italiano)</label>
                   <textarea id="baby-msg" className="input" value={birthMessage} onChange={(e) => setBirthMessage(e.target.value)} placeholder="es. Mamma e papà stanno bene" />
+                </div>
+                <div className={styles.field}>
+                  <label className="label" htmlFor="baby-msg-en">Messaggio opzionale (inglese)</label>
+                  <textarea id="baby-msg-en" className="input" value={birthMessageEn} onChange={(e) => setBirthMessageEn(e.target.value)} placeholder="e.g. Mum and baby are doing well" />
+                  <p className={styles.fieldHint}>Se lo lasci vuoto, chi legge in inglese vede il testo italiano con la bandierina.</p>
                 </div>
               </>
             )}
@@ -349,7 +356,7 @@ export default function InviaClient() {
             {(notifType === 'birth' || title || body) && (
               <NotificationPreview
                 notifType={notifType}
-                payload={notifType === 'birth' ? { babyName, weight, lengthCm, birthMessage } : undefined}
+                payload={notifType === 'birth' ? { babyName, weight, lengthCm, birthMessage, birthMessageEn } : undefined}
                 title={title}
                 body={body}
               />
