@@ -17,7 +17,7 @@ type IOSPushStatus = 'not-ios' | 'needs-install' | 'old-ios' | 'other-browser' |
 // Collects device details that don't require any permission prompt (unlike
 // navigator.geolocation), to enrich the subscription record server-side.
 // Best-effort: every field is optional and unsupported ones are just omitted.
-function collectClientDeviceHints(): Record<string, unknown> {
+async function collectClientDeviceHints(): Promise<Record<string, unknown>> {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {};
   }
@@ -34,6 +34,9 @@ function collectClientDeviceHints(): Record<string, unknown> {
     connection?: { effectiveType?: string };
     mozConnection?: { effectiveType?: string };
     webkitConnection?: { effectiveType?: string };
+    userAgentData?: {
+      getHighEntropyValues?: (hints: string[]) => Promise<Record<string, string>>;
+    };
   };
   const connection = nav.connection || nav.mozConnection || nav.webkitConnection;
 
@@ -42,6 +45,28 @@ function collectClientDeviceHints(): Record<string, unknown> {
     colorScheme = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   } catch {
     colorScheme = undefined;
+  }
+
+  // Chromium's User-Agent Reduction replaces the Android model with "K" and
+  // the OS version with "10" in the UA string. These high-entropy Client
+  // Hints are the only way to recover the real values. Chromium-only, so the
+  // API is simply absent on Safari/Firefox — hence the optional chaining.
+  let chModel: string | undefined;
+  let chPlatformVersion: string | undefined;
+  let chFullVersion: string | undefined;
+  try {
+    const hints = await nav.userAgentData?.getHighEntropyValues?.([
+      'model',
+      'platformVersion',
+      'uaFullVersion',
+    ]);
+    if (hints) {
+      chModel = hints.model || undefined;
+      chPlatformVersion = hints.platformVersion || undefined;
+      chFullVersion = hints.uaFullVersion || undefined;
+    }
+  } catch {
+    // Rejected or unsupported: fall back to whatever the UA string offers.
   }
 
   return {
@@ -57,6 +82,9 @@ function collectClientDeviceHints(): Record<string, unknown> {
     touchPoints: nav.maxTouchPoints,
     colorScheme,
     connectionType: connection?.effectiveType,
+    chModel,
+    chPlatformVersion,
+    chFullVersion,
   };
 }
 
@@ -320,7 +348,7 @@ export default function HomeClient({
         }
         return 'it-IT';
       })();
-      const deviceHints = collectClientDeviceHints();
+      const deviceHints = await collectClientDeviceHints();
       const res = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -448,7 +476,7 @@ export default function HomeClient({
           {status === 'ios-needs-install' && (
             <div className={styles.iosInstallCard}>
               <div className={styles.iosInstallTitle}>
-                <SafariIcon /> {t.iosTitle}
+                {t.iosTitle}
               </div>
               <p className={styles.iosInstallIntro}>{t.iosIntro}</p>
               <ol className={styles.iosSteps}>
@@ -556,15 +584,6 @@ export default function HomeClient({
 
       {birth && <FusionOverlay ref={fusionHandleRef} />}
     </main>
-  );
-}
-
-function SafariIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline', verticalAlign: 'text-bottom' }}>
-      <circle cx="12" cy="12" r="10" />
-      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-    </svg>
   );
 }
 

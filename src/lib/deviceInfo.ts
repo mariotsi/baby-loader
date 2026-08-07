@@ -16,6 +16,12 @@ export interface ClientDeviceHints {
   touchPoints?: unknown;
   colorScheme?: unknown;
   connectionType?: unknown;
+  // High-entropy User-Agent Client Hints (Chromium only). Chrome 110+ freezes
+  // the Android model to "K" and the OS version to "10" in the UA string, so
+  // these are the only way to recover the real values.
+  chModel?: unknown;
+  chPlatformVersion?: unknown;
+  chFullVersion?: unknown;
 }
 
 export interface DeviceInfo {
@@ -105,6 +111,20 @@ function guessIphoneModel(
   return match ? match.models : null;
 }
 
+// Chrome 110+ (Feb 2023) applies "User-Agent Reduction" on Android: the real
+// device model is replaced by the fixed placeholder "K" and the OS version by
+// a frozen "10", for every device, across all Chromium browsers (Chrome,
+// Edge, Opera, Samsung Internet). These carry no information at all, so we
+// drop them instead of storing a model that looks real but isn't. The real
+// values are only recoverable via high-entropy Client Hints (chModel /
+// chPlatformVersion), which the client requests and sends separately.
+const ANDROID_PLACEHOLDER_MODEL = 'K';
+const ANDROID_FROZEN_OS_VERSION = '10';
+
+function isAndroidPlaceholderModel(model: string | null, osName: string | null): boolean {
+  return model === ANDROID_PLACEHOLDER_MODEL && !!osName && /android/i.test(osName);
+}
+
 // Starting with Safari 26 (shipped with iOS/iPadOS 26, Sept 2025), Apple
 // freezes the OS version reported in Safari's User-Agent string at "18.6"
 // (the last version before 26) to reduce fingerprinting — regardless of the
@@ -150,16 +170,10 @@ function buildLabel(input: {
   }
 
   let osLabel: string | null = osName ? [osName, osVersion].filter(Boolean).join(' ') : null;
-  if (osVersionFrozen && osName) {
-    // From iOS/iPadOS 26 onward Apple ships matching major version numbers
-    // for the OS and Safari (Safari 26 <-> iOS 26), so Safari's own version
-    // — which is NOT frozen — is our best available proxy for the real OS
-    // major version.
-    const browserMajor = browserVersion ? parseInt(browserVersion, 10) : null;
-    osLabel =
-      browserMajor && browserMajor >= 26
-        ? `${osName} ${browserMajor}+ (versione esatta nascosta da Apple)`
-        : `${osName} 26+ (versione esatta nascosta da Apple)`;
+  if (osVersionFrozen && osLabel) {
+    // osVersion has already been replaced upstream with Safari's major version,
+    // which is an estimate rather than a value the device actually reported.
+    osLabel = osVersion ? `${osLabel}+ (stimata)` : `${osLabel} (versione nascosta da Apple)`;
   }
   const browserLabel = browserName ? [browserName, browserVersion].filter(Boolean).join(' ') : null;
 
@@ -183,18 +197,49 @@ export function buildDeviceInfo(userAgent: string | null, rawHints: unknown): De
   const pixelRatio = clampFloat(h.pixelRatio);
 
   const osName = clip(parsed.os.name);
-  const osVersion = clip(parsed.os.version, 30);
   const browserName = clip(parsed.browser.name);
   const browserVersion = clip(parsed.browser.version, 30);
   const deviceType = clip(parsed.device.type) ?? 'desktop';
   const vendor = clip(parsed.device.vendor);
-  const model = clip(parsed.device.model);
+
+  // Client Hints (Chromium only) carry the real values Chrome's UA Reduction
+  // strips out, so they take precedence over anything parsed from the UA.
+  const chModel = clipUnknown(h.chModel, 100);
+  const chPlatformVersion = clipUnknown(h.chPlatformVersion, 30);
+
+  let model = chModel || clip(parsed.device.model);
+  // Chrome sends "K" in the UA and, on some configurations, an empty string
+  // via Client Hints. Neither identifies anything, so store nothing.
+  if (isAndroidPlaceholderModel(model, osName) || model === '') {
+    model = null;
+  }
+
+  let osVersion = clip(parsed.os.version, 30);
+  const isAndroid = !!osName && /android/i.test(osName);
+  if (isAndroid) {
+    // Prefer the Client Hints value; otherwise drop the frozen "10", which is
+    // a placeholder rather than the device's real Android version.
+    if (chPlatformVersion) {
+      osVersion = chPlatformVersion;
+    } else if (osVersion === ANDROID_FROZEN_OS_VERSION) {
+      osVersion = null;
+    }
+  }
 
   // Only worth guessing for iOS where the UA hides the real model; on
-  // Android/others ua-parser-js already extracts a real model most of the time.
+  // Android/others the model comes from Client Hints when available.
   const isIOS = !!osName && /ios|ipados/i.test(osName);
   const modelGuess = isIOS ? guessIphoneModel(screenWidth, screenHeight, pixelRatio) : null;
+
   const osVersionFrozen = isIosVersionFrozen(osName, osVersion, browserName);
+  if (osVersionFrozen) {
+    // From iOS/iPadOS 26 onward Apple ships matching major version numbers for
+    // the OS and Safari (Safari 26 <-> iOS 26), and Safari's own version is
+    // NOT frozen — so its major is a far better estimate of the real OS
+    // version than the fake "18.6" Apple reports.
+    const browserMajor = browserVersion ? parseInt(browserVersion, 10) : NaN;
+    osVersion = Number.isFinite(browserMajor) && browserMajor >= 26 ? String(browserMajor) : null;
+  }
 
   return {
     ua: clip(userAgent, 512),
