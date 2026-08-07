@@ -40,8 +40,8 @@ const it = {
   iosStep1: {
     before: 'Tocca il pulsante',
     strong: 'Condividi',
-    alt: 'o i tre puntini',
-    after: 'se non vedi Condividi nella barra in basso o in alto',
+    noteBefore: 'Se non lo vedi nella barra in basso o in alto, tocca prima i tre puntini',
+    noteAfter: 'poi Condividi.',
   },
   iosStep2: {
     before: 'Scorri e tocca',
@@ -107,8 +107,8 @@ const en: Messages = {
   iosStep1: {
     before: 'Tap the',
     strong: 'Share',
-    alt: 'or the three dots',
-    after: 'if you don\u2019t see Share in the bottom or top bar',
+    noteBefore: 'If you don\u2019t see it in the bottom or top bar, tap the three dots first',
+    noteAfter: 'then tap Share.',
   },
   iosStep2: {
     before: 'Scroll down and tap',

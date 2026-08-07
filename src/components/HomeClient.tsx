@@ -414,8 +414,11 @@ export default function HomeClient({
                 <li>
                   <span className={styles.iosStepNum}>1</span>
                   <span>
-                    {t.iosStep1.before} <strong>{t.iosStep1.strong}</strong> <ShareIcon />{' '}
-                    {t.iosStep1.alt} <MoreIcon />, {t.iosStep1.after}
+                    {t.iosStep1.before} <strong>{t.iosStep1.strong}</strong> <ShareIcon />
+                    <br />
+                    <span className={styles.iosStepNote}>
+                      {t.iosStep1.noteBefore} <MoreIcon />, {t.iosStep1.noteAfter}
+                    </span>
                   </span>
                 </li>
                 <li>
