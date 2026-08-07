@@ -250,10 +250,10 @@ export default function InviaClient() {
           <div className={styles.pageTitleTag}>Admin</div>
           <h1 className={styles.heading}>Invia notifica</h1>
           {subscriberCount !== null && (
-            <p className={styles.countBadge}>
+            <Link href="/admin/subscriptions" className={styles.countBadge}>
               <span className={styles.countDot} />
               {subscriberCount} {subscriberCount === 1 ? 'iscritto' : 'iscritti'} attivi
-            </p>
+            </Link>
           )}
         </div>
 

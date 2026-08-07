@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { NextRequest } from 'next/server';
+import { rateLimit } from './rateLimit';
 
 export const SESSION_COOKIE = 'admin-session';
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -78,4 +79,19 @@ export function clientIp(req: NextRequest): string {
     return forwarded.split(',')[0].trim();
   }
   return req.headers.get('x-nf-client-connection-ip') ?? 'unknown';
+}
+
+/**
+ * Shared guard for admin-only routes: rate-limits by IP, then requires a
+ * valid session. Returns a ready-to-return error response, or null when the
+ * request is allowed through.
+ */
+export function adminGuard(req: NextRequest): { error: string; status: number } | null {
+  if (!rateLimit(`admin:${clientIp(req)}`, 10, 60_000)) {
+    return { error: 'Troppi tentativi, riprova tra un minuto', status: 429 };
+  }
+  if (!isAuthorized(req)) {
+    return { error: 'Non autorizzato', status: 401 };
+  }
+  return null;
 }

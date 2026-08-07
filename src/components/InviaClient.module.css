@@ -189,6 +189,13 @@
   gap: 8px;
   font-size: 12px;
   color: var(--text-2);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.countBadge:hover {
+  color: var(--accent-ink-sm);
+  text-decoration: underline;
 }
 
 .countDot {

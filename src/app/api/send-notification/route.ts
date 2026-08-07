@@ -1,38 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import webpush from 'web-push';
 import { getMongoClient } from '@/lib/mongodb';
-import { isAuthorized, clientIp } from '@/lib/auth';
-import { rateLimit } from '@/lib/rateLimit';
+import { adminGuard } from '@/lib/auth';
 import { formatBirthNotification, parseNumber } from '@/lib/birthNotification';
-
-const VAPID_EMAIL = process.env.VAPID_EMAIL;
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
-
-// Configure lazily: a missing env var must not crash module evaluation, which
-// would turn every request to this route into an opaque 500.
-let vapidReady = false;
-function ensureVapid(): boolean {
-  if (vapidReady) {
-    return true;
-  }
-  if (!VAPID_EMAIL || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-    return false;
-  }
-  webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-  vapidReady = true;
-  return true;
-}
-
-function guard(req: NextRequest): NextResponse | null {
-  if (!rateLimit(`admin:${clientIp(req)}`, 10, 60_000)) {
-    return NextResponse.json({ error: 'Troppi tentativi, riprova tra un minuto' }, { status: 429 });
-  }
-  if (!isAuthorized(req)) {
-    return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
-  }
-  return null;
-}
+import { webpush, ensureVapid } from '@/lib/webpush';
 
 function safeRedirectPath(input: unknown): string {
   if (typeof input !== 'string' || !input.startsWith('/') || input.startsWith('//')) {
@@ -42,9 +12,9 @@ function safeRedirectPath(input: unknown): string {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = guard(req);
+  const denied = adminGuard(req);
   if (denied) {
-    return denied;
+    return NextResponse.json({ error: denied.error }, { status: denied.status });
   }
 
   if (!ensureVapid()) {
@@ -190,9 +160,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const denied = guard(req);
+  const denied = adminGuard(req);
   if (denied) {
-    return denied;
+    return NextResponse.json({ error: denied.error }, { status: denied.status });
   }
 
   try {

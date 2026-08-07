@@ -65,7 +65,15 @@ VAPID_EMAIL=mailto:tu@email.com
 ADMIN_PASSWORD=unaPasswordSicura123
 # Opzionale: firma il cookie di sessione admin. Se assente si usa ADMIN_PASSWORD.
 SESSION_SECRET=unSegretoLungoECasuale
+# Opzionale: _id (in /admin/subscriptions) della subscription del tuo device.
+# Se impostato, ricevi una notifica push ogni volta che un ALTRO device si
+# iscrive o cancella l'iscrizione, con link alla riga evidenziata in
+# /admin/subscriptions. Senza questa variabile la funzione è semplicemente
+# disattivata.
+ADMIN_SUBSCRIPTION_ID=64f1a2b3c4d5e6f7a8b9c0d1
 ```
+
+> **Come trovare il tuo `ADMIN_SUBSCRIPTION_ID`**: iscriviti dal tuo dispositivo, poi vai su `/admin/subscriptions`, apri la riga corrispondente al tuo device e copia il campo "ID iscrizione" nella modale.
 
 ### 5. Genera le icone
 
@@ -125,6 +133,7 @@ VAPID_PRIVATE_KEY
 VAPID_EMAIL
 ADMIN_PASSWORD
 SESSION_SECRET
+ADMIN_SUBSCRIPTION_ID
 ```
 
 ---

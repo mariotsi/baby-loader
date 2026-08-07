@@ -5,6 +5,7 @@ import { rateLimit } from '@/lib/rateLimit';
 import { clientIp } from '@/lib/auth';
 import { buildDeviceInfo } from '@/lib/deviceInfo';
 import { lookupGeo } from '@/lib/geoip';
+import { notifyAdminOfSubscriptionChange } from '@/lib/adminNotify';
 
 const LOCALE_RE = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/i;
 
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     const col = db.collection('subscriptions');
 
     // Upsert by endpoint to avoid duplicates
-    await col.updateOne(
+    const result = await col.updateOne(
       { 'subscription.endpoint': subscription.endpoint },
       {
         $set: { subscription, locale, device, location, ip, updatedAt: new Date() },
@@ -45,6 +46,18 @@ export async function POST(req: NextRequest) {
       },
       { upsert: true }
     );
+
+    // Only ping the admin for genuinely new devices, not every silent
+    // re-subscribe an existing browser performs (e.g. after key rotation).
+    // Awaited (not fire-and-forget): on serverless, the function may be
+    // frozen the instant the response is sent, killing an un-awaited push.
+    if (result.upsertedId) {
+      await notifyAdminOfSubscriptionChange('new', {
+        id: result.upsertedId.toString(),
+        device,
+        location,
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {
@@ -71,10 +84,20 @@ export async function DELETE(req: NextRequest) {
     const client = await getMongoClient();
     const db = client.db('pushnotify');
 
-    await db.collection('subscriptions').deleteOne({
+    // Atomically fetch + delete so we still have the device/location info
+    // needed for the admin notification after the doc is gone.
+    const deleted = await db.collection('subscriptions').findOneAndDelete({
       'subscription.endpoint': subscription.endpoint,
       'subscription.keys.auth': subscription.keys.auth,
     });
+
+    if (deleted) {
+      await notifyAdminOfSubscriptionChange('removed', {
+        id: deleted._id.toString(),
+        device: deleted.device,
+        location: deleted.location,
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {
