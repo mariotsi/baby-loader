@@ -34,7 +34,7 @@ const it = {
 
   // Push CTA and status
   checking: 'Controllo stato...',
-  iosTitle: 'Un passaggio in più su iOS',
+  iosTitle: 'Per ricevere la notifica quando nascerà',
   iosIntro:
     'Apple non permette di inviare notifiche push ai siti aperti nel browser: solo i siti salvati come app sulla schermata Home possono riceverle. Aggiungi questo sito alla schermata Home per abilitarle.',
   iosStep1: {
@@ -59,11 +59,59 @@ const it = {
     'Su iPhone e iPad le notifiche funzionano solo con Safari: riapri questa pagina in Safari',
   unsupportedGeneric: 'Il tuo browser non supporta le notifiche push',
   denied: 'Permesso negato: abilita le notifiche nelle impostazioni del browser',
+  deniedHelpTitle: 'Le notifiche risultano bloccate',
+  deniedHelp: {
+    android: {
+      intro: 'Le notifiche per Chrome sono disattivate a livello di sistema. Per riattivarle:',
+      steps: [
+        'Apri le Impostazioni del telefono',
+        'Tocca \u201cNotifiche\u201d, poi \u201cNotifiche app\u201d',
+        'Cerca e tocca \u201cChrome\u201d (se non lo vedi, tocca \u201cTutte le app\u201d)',
+        'Attiva \u201cConsenti notifiche\u201d',
+      ],
+    },
+    ios: {
+      intro: 'Le notifiche per questa app sono disattivate nelle impostazioni di iOS. Per riattivarle:',
+      steps: [
+        'Apri Impostazioni, poi Notifiche',
+        'Cerca il nome che hai dato a questa app quando l\u2019hai aggiunta alla schermata Home',
+        'Attiva \u201cConsenti notifiche\u201d',
+      ],
+    },
+    'macos-safari': {
+      intro: 'Le notifiche per questo sito sono bloccate nelle impostazioni di Safari. Per riattivarle:',
+      steps: [
+        'Apri Safari, poi Impostazioni (o Preferenze)',
+        'Vai su \u201cSiti web\u201d, poi \u201cNotifiche\u201d',
+        'Trova questo sito nell\u2019elenco e scegli \u201cConsenti\u201d',
+      ],
+    },
+    firefox: {
+      intro: 'Le notifiche per questo sito sono bloccate in Firefox. Per riattivarle:',
+      steps: [
+        'Tocca l\u2019icona del lucchetto nella barra degli indirizzi',
+        'Apri \u201cAltre informazioni\u201d \u2192 \u201cAutorizzazioni\u201d (su Android: menu \u2192 Impostazioni \u2192 Permessi sito)',
+        'Imposta \u201cInvia notifiche\u201d su \u201cConsenti\u201d',
+      ],
+    },
+    'chromium-desktop': {
+      intro: 'Le notifiche per questo sito sono bloccate. Per riattivarle:',
+      steps: [
+        'Clicca sull\u2019icona vicino alla barra degli indirizzi (lucchetto o \u201ci\u201d)',
+        'Apri \u201cAutorizzazioni sito\u201d o \u201cInformazioni sito\u201d',
+        'Imposta \u201cNotifiche\u201d su \u201cConsenti\u201d',
+      ],
+    },
+    generic: {
+      intro: 'Le notifiche per questo sito sono bloccate nelle impostazioni del browser o del dispositivo.',
+      steps: [] as string[],
+    },
+  },
   subscribedBorn: 'Notifiche attive su questo dispositivo',
   subscribedWaiting: 'Notifica della nascita attiva su questo dispositivo',
   unsubscribe: 'Disiscriviti',
-  subscribeBorn: 'Ricevi le prossime notizie',
-  subscribeWaiting: 'Ricevi notifica della nascita',
+  subscribeBorn: 'Clicca qui per ricevere le prossime notizie',
+  subscribeWaiting: 'Clicca qui per ricevere la notifica quando nascerà',
   subscribing: 'Attivazione...',
 
   // Feedback
@@ -101,7 +149,7 @@ const en: Messages = {
   unmute: 'Turn on sound',
 
   checking: 'Checking...',
-  iosTitle: 'One extra step on iOS',
+  iosTitle: 'To get notified when she arrives',
   iosIntro:
     'Apple does not allow push notifications for websites open in the browser \u2014 only sites saved as an app on the Home Screen can receive them. Add this site to your Home Screen to enable them.',
   iosStep1: {
@@ -126,11 +174,59 @@ const en: Messages = {
     'On iPhone and iPad notifications only work in Safari: reopen this page in Safari',
   unsupportedGeneric: 'Your browser does not support push notifications',
   denied: 'Permission denied: turn notifications on in your browser settings',
+  deniedHelpTitle: 'Notifications are currently blocked',
+  deniedHelp: {
+    android: {
+      intro: 'Notifications for Chrome are turned off at the system level. To turn them back on:',
+      steps: [
+        'Open your phone\u2019s Settings app',
+        'Tap \u201cNotifications\u201d, then \u201cApp notifications\u201d',
+        'Find and tap \u201cChrome\u201d (tap \u201cAll apps\u201d if you don\u2019t see it)',
+        'Turn \u201cAllow notifications\u201d on',
+      ],
+    },
+    ios: {
+      intro: 'Notifications for this app are turned off in iOS settings. To turn them back on:',
+      steps: [
+        'Open Settings, then Notifications',
+        'Find the name you gave this app when you added it to your Home Screen',
+        'Turn \u201cAllow Notifications\u201d on',
+      ],
+    },
+    'macos-safari': {
+      intro: 'Notifications for this site are blocked in Safari\u2019s settings. To turn them back on:',
+      steps: [
+        'Open Safari, then Settings (or Preferences)',
+        'Go to \u201cWebsites\u201d, then \u201cNotifications\u201d',
+        'Find this site in the list and choose \u201cAllow\u201d',
+      ],
+    },
+    firefox: {
+      intro: 'Notifications for this site are blocked in Firefox. To turn them back on:',
+      steps: [
+        'Click the padlock icon in the address bar',
+        'Open \u201cMore Information\u201d \u2192 \u201cPermissions\u201d (on Android: menu \u2192 Settings \u2192 Site permissions)',
+        'Set \u201cSend Notifications\u201d to \u201cAllow\u201d',
+      ],
+    },
+    'chromium-desktop': {
+      intro: 'Notifications for this site are blocked. To turn them back on:',
+      steps: [
+        'Click the icon next to the address bar (padlock or \u201ci\u201d)',
+        'Open \u201cSite settings\u201d or \u201cView site information\u201d',
+        'Set \u201cNotifications\u201d to \u201cAllow\u201d',
+      ],
+    },
+    generic: {
+      intro: 'Notifications for this site are blocked in your browser or device settings.',
+      steps: [] as string[],
+    },
+  },
   subscribedBorn: 'Notifications are on for this device',
   subscribedWaiting: 'The birth notification is on for this device',
   unsubscribe: 'Turn off',
-  subscribeBorn: 'Get the next updates',
-  subscribeWaiting: 'Get notified when she arrives',
+  subscribeBorn: 'Click here to get the next updates',
+  subscribeWaiting: 'Click here to get notified when she arrives',
   subscribing: 'Turning on...',
 
   subscribeOk: 'You are all set.',

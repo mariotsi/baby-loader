@@ -60,6 +60,45 @@ function collectClientDeviceHints(): Record<string, unknown> {
   };
 }
 
+// When notification permission is 'denied', the fix lives in OS or browser
+// settings outside the page, and the exact path differs a lot by
+// platform/browser. We classify into the few distinct flows that matter;
+// anything we can't confidently classify falls back to a generic message
+// with no specific steps rather than risking wrong instructions.
+type DeniedHelpKind = 'android' | 'ios' | 'macos-safari' | 'firefox' | 'chromium-desktop' | 'generic';
+
+function getDeniedHelpKind(): DeniedHelpKind {
+  if (typeof navigator === 'undefined') {
+    return 'generic';
+  }
+  const ua = navigator.userAgent;
+  const isAndroid = /Android/i.test(ua);
+  // iPadOS 13+ reports a desktop Mac UA, so detect it via touch support too.
+  const isIPadOS = /Macintosh/.test(ua) && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || isIPadOS;
+  const isFirefox = /Firefox|FxiOS/i.test(ua);
+  // Real Safari only: Chrome/Edge/Opera on iOS and macOS all include "Safari"
+  // in their UA too, so it must be excluded explicitly.
+  const isSafari = /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|EdgiOS|OPR/i.test(ua);
+  const isMac = /Macintosh/.test(ua) && !isIOS;
+
+  if (isAndroid) {
+    return 'android';
+  }
+  if (isIOS) {
+    return 'ios';
+  }
+  if (isMac && isSafari) {
+    return 'macos-safari';
+  }
+  if (isFirefox) {
+    return 'firefox';
+  }
+  // Chrome, Edge, Opera, Brave and other Chromium browsers on desktop: the
+  // site-permission UI is effectively identical across all of them.
+  return 'chromium-desktop';
+}
+
 // Returns 'ready' if push can be used, 'needs-install' if iOS/iPadOS Safari is
 // not running as an installed PWA, 'old-ios' if the OS predates push support.
 function getIOSPushStatus(): IOSPushStatus {
@@ -119,6 +158,7 @@ export default function HomeClient({
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [message, setMessage] = useState('');
   const [iosStatus, setIosStatus] = useState<IOSPushStatus>('not-ios');
+  const [deniedHelpKind, setDeniedHelpKind] = useState<DeniedHelpKind>('generic');
   const confettiHandleRef = useRef<ConfettiHandle | null>(null);
   const fusionHandleRef = useRef<FusionOverlayHandle | null>(null);
   // Starts as null: computing it during render would use the server timezone
@@ -153,6 +193,7 @@ export default function HomeClient({
     setStatus('checking');
     const ios = getIOSPushStatus();
     setIosStatus(ios);
+    setDeniedHelpKind(getDeniedHelpKind());
 
     if (ios === 'needs-install') {
       setStatus('ios-needs-install');
@@ -452,9 +493,23 @@ export default function HomeClient({
           )}
 
           {status === 'denied' && (
-            <div className={`${styles.statusBadge} ${styles.error}`}>
-              <span className={styles.indicator} />
-              {t.denied}
+            <div className={styles.iosInstallCard}>
+              <div className={`${styles.statusBadge} ${styles.error}`} style={{ marginBottom: 16 }}>
+                <span className={styles.indicator} />
+                {t.denied}
+              </div>
+              <div className={styles.iosInstallTitle}>{t.deniedHelpTitle}</div>
+              <p className={styles.iosInstallIntro}>{t.deniedHelp[deniedHelpKind].intro}</p>
+              {t.deniedHelp[deniedHelpKind].steps.length > 0 && (
+                <ol className={styles.iosSteps}>
+                  {t.deniedHelp[deniedHelpKind].steps.map((step, i) => (
+                    <li key={i}>
+                      <span className={styles.iosStepNum}>{i + 1}</span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
             </div>
           )}
 
