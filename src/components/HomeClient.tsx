@@ -14,6 +14,52 @@ import { decodeVapidKey, VapidKeyError } from '@/lib/vapid';
 type Status = 'idle' | 'checking' | 'loading' | 'subscribed' | 'denied' | 'unsupported' | 'error' | 'ios-needs-install';
 type IOSPushStatus = 'not-ios' | 'needs-install' | 'old-ios' | 'other-browser' | 'ready';
 
+// Collects device details that don't require any permission prompt (unlike
+// navigator.geolocation), to enrich the subscription record server-side.
+// Best-effort: every field is optional and unsupported ones are just omitted.
+function collectClientDeviceHints(): Record<string, unknown> {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return {};
+  }
+
+  let timezone: string | undefined;
+  try {
+    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    timezone = undefined;
+  }
+
+  const nav = navigator as Navigator & {
+    deviceMemory?: number;
+    connection?: { effectiveType?: string };
+    mozConnection?: { effectiveType?: string };
+    webkitConnection?: { effectiveType?: string };
+  };
+  const connection = nav.connection || nav.mozConnection || nav.webkitConnection;
+
+  let colorScheme: 'light' | 'dark' | undefined;
+  try {
+    colorScheme = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch {
+    colorScheme = undefined;
+  }
+
+  return {
+    timezone,
+    screenWidth: window.screen?.width,
+    screenHeight: window.screen?.height,
+    pixelRatio: window.devicePixelRatio,
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+    platform: nav.platform,
+    hardwareConcurrency: nav.hardwareConcurrency,
+    deviceMemory: nav.deviceMemory,
+    touchPoints: nav.maxTouchPoints,
+    colorScheme,
+    connectionType: connection?.effectiveType,
+  };
+}
+
 // Returns 'ready' if push can be used, 'needs-install' if iOS/iPadOS Safari is
 // not running as an installed PWA, 'old-ios' if the OS predates push support.
 function getIOSPushStatus(): IOSPushStatus {
@@ -233,10 +279,11 @@ export default function HomeClient({
         }
         return 'it-IT';
       })();
+      const deviceHints = collectClientDeviceHints();
       const res = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription, locale }),
+        body: JSON.stringify({ subscription, locale, deviceHints }),
       });
 
       if (!res.ok) {
