@@ -15,6 +15,17 @@ const ENDED_FALLBACK_MS = 12_000;
 const START_FALLBACK_MS = 8_000;
 /** Must match the opacity transition in FusionOverlay.module.css. */
 const FADE_MS = 900;
+/**
+ * Second at which the clip's own caption used to appear. The garbled AI text
+ * has been painted out of the file, so the HTML caption takes its slot at the
+ * exact same moment.
+ */
+const CAPTION_FROM_S = 4.18;
+/**
+ * The caption is only on screen for the clip's last 0.86s, which is not long
+ * enough to read it. Holding the final frame before the fade buys that time.
+ */
+const HOLD_AFTER_END_MS = 1800;
 
 function hasSeen(): boolean {
   try {
@@ -48,6 +59,7 @@ const FusionOverlay = forwardRef<FusionOverlayHandle>((_props, ref) => {
   const timersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const [phase, setPhase] = useState<'hidden' | 'playing' | 'fading'>('hidden');
   const [needsUnmute, setNeedsUnmute] = useState(false);
+  const [captionOn, setCaptionOn] = useState(false);
 
   const clearTimers = useCallback(() => {
     for (const timer of timersRef.current) {
@@ -77,6 +89,14 @@ const FusionOverlay = forwardRef<FusionOverlayHandle>((_props, ref) => {
     },
     [addTimer, clearTimers]
   );
+
+  const holdThenDismiss = useCallback(() => {
+    // `ended` arrived, so the start and ended safety nets have done their job:
+    // drop them, otherwise the 8s start check would see a paused video mid-hold
+    // and cut the caption short on a slow connection.
+    clearTimers();
+    addTimer(() => dismiss(true), HOLD_AFTER_END_MS);
+  }, [addTimer, clearTimers, dismiss]);
 
   const start = useCallback(
     async (withSound: boolean) => {
@@ -142,6 +162,30 @@ const FusionOverlay = forwardRef<FusionOverlayHandle>((_props, ref) => {
     return () => clearTimers();
   }, [clearTimers, start]);
 
+  // Drives the caption off the actual playhead rather than `timeupdate`, which
+  // only fires a few times a second: the caption is on screen for well under a
+  // second, so a quarter-second of slop would be plainly visible.
+  useEffect(() => {
+    if (phase === 'hidden') {
+      setCaptionOn(false);
+      return;
+    }
+    if (phase !== 'playing') {
+      // While fading out we freeze the caption as it was, matching the video.
+      return;
+    }
+    let frame = 0;
+    const tick = () => {
+      const video = videoRef.current;
+      if (video) {
+        setCaptionOn(video.currentTime >= CAPTION_FROM_S);
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [phase]);
+
   // Locking the scroll keeps a half-scrolled page from peeking around the video.
   useEffect(() => {
     if (phase === 'hidden') {
@@ -170,16 +214,25 @@ const FusionOverlay = forwardRef<FusionOverlayHandle>((_props, ref) => {
       aria-label={t.fusionDialogLabel}
       aria-hidden={phase === 'hidden'}
     >
-      <video
-        ref={videoRef}
-        className={styles.video}
-        src="/fusione.mp4"
-        poster="/fusione-poster.jpg"
-        preload="auto"
-        playsInline
-        onEnded={() => dismiss(true)}
-        onError={() => dismiss(false)}
-      />
+      {/* The stage reproduces exactly the box `object-fit: contain` would give
+          the 16:9 clip, so the caption can be positioned as a percentage of it
+          and stay welded to the video at every viewport. */}
+      <div className={styles.stage}>
+        <video
+          ref={videoRef}
+          className={styles.video}
+          src="/fusione.mp4"
+          poster="/fusione-poster.jpg"
+          preload="auto"
+          playsInline
+          onEnded={holdThenDismiss}
+          onError={() => dismiss(false)}
+        />
+
+        <p className={styles.caption} data-visible={captionOn}>
+          {t.fusionCaption}
+        </p>
+      </div>
 
       {needsUnmute && (
         <button type="button" className={styles.unmute} onClick={unmute}>

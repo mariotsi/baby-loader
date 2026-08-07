@@ -29,6 +29,7 @@ const it = {
 
   // Fusion overlay
   fusionDialogLabel: 'Video: la fusione',
+  fusionCaption: 'La nostra fusione perfetta',
   unmute: 'Attiva audio',
 
   // Push CTA and status
@@ -95,6 +96,7 @@ const en: Messages = {
   replay: 'Watch the fusion again',
 
   fusionDialogLabel: 'Video: the fusion',
+  fusionCaption: 'Our perfect fusion',
   unmute: 'Turn on sound',
 
   checking: 'Checking...',

@@ -212,6 +212,8 @@ Dettagli che vale la pena conoscere prima di metterci mano:
 - Non c'è un pulsante "Salta", ma l'overlay **si chiude da solo** in caso di errore o di
   riproduzione che non parte: senza, una connessione instabile lascerebbe l'utente
   chiuso fuori dal sito.
+- La didascalia finale **non è nel video**: è HTML, quindi bilingue. Vedi la sezione
+  successiva.
 - La home non è in cache: `page.tsx` dichiara `export const dynamic = 'force-dynamic'`,
   quindi legge il documento `births` a ogni richiesta. La pagina rispecchia sempre il
   database, comprese le modifiche fatte a mano durante le prove, e non serve alcuna
@@ -226,6 +228,48 @@ ffmpeg -i sorgente.mp4 -vf "scale=1280:-2:flags=lanczos" \
   -tune animation -c:a aac -b:a 96k -movflags +faststart public/fusione.mp4
 ffmpeg -i public/fusione.mp4 -frames:v 1 -vf "scale=960:-2" -q:v 6 public/fusione-poster.jpg
 ```
+
+### La didascalia finale
+
+Il sorgente generato da KlingAI conteneva, nell'ultimo secondo, una scritta illeggibile
+che avrebbe dovuto dire "La nostra fusione perfetta". È stata **cancellata dal file** e
+rifatta in HTML, così è anche traducibile: `fusionCaption` in `src/lib/messages.ts`.
+
+La cancellazione approfitta del fatto che la scena è **immobile** dopo il secondo 4,175
+(differenza media fra i fotogrammi: 0,67 su 255, cioè solo rumore di compressione).
+Basta quindi incollare quella zona presa dall'ultimo fotogramma pulito, con i bordi
+sfumati, e il rattoppo è invisibile:
+
+```bash
+# 1. il fotogramma pulito subito prima che compaia la scritta
+ffmpeg -ss 3.8 -i sorgente.mp4 -vf fps=24 -frames:v 10 /tmp/f%03d.png
+# 2. ritaglia da /tmp/f010.png il rettangolo (276, 562) 628x94 e salvalo come
+#    patch.png in RGBA, con l'alpha sfumata di ~6px sui bordi
+# 3. incollalo su ogni fotogramma dal secondo 4,18 in poi
+ffmpeg -i sorgente.mp4 -i patch.png \
+  -filter_complex "[0:v][1:v]overlay=276:562:enable='gte(t,4.18)'[v]" \
+  -map "[v]" -map 0:a -c:v libx264 -crf 25 -preset slow -pix_fmt yuv420p \
+  -profile:v high -movflags +faststart -c:a copy public/fusione.mp4
+```
+
+Il testo HTML riprende posizione, dimensione e stile di quello originale: giallo con
+contorno nero, condensato corsivo maiuscolo, cap height centrata all'83,6% del
+fotogramma, corpo pari al 4% della larghezza del video.
+
+Perché resti incollato al video a **ogni** viewport, il `<video>` è avvolto da uno
+`.stage` che riproduce esattamente il riquadro prodotto da `object-fit: contain`
+(`min(100dvw, 100dvh * 16 / 9)` con `aspect-ratio: 16 / 9`). Senza, su schermi più
+larghi di 16:9 il contenitore resterebbe largo quanto la finestra e la didascalia
+scivolerebbe fuori posto. Le percentuali sono riferite a quel riquadro, quindi non
+serve JavaScript per il posizionamento.
+
+La comparsa è pilotata da `requestAnimationFrame` sul `currentTime`, non da
+`timeupdate`: quest'ultimo scatta poche volte al secondo, e un ritardo di un quarto di
+secondo su una didascalia così breve sarebbe visibile.
+
+Infine, a video finito l'ultimo fotogramma **resta fermo** per `HOLD_AFTER_END_MS` prima
+della dissolvenza: nel sorgente la scritta durava 0,86 secondi, troppo pochi per
+leggerla.
 
 ---
 
