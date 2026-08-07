@@ -60,7 +60,7 @@ function daysUntilTarget(): number {
 
 export default function HomeClient({
   vapidPublicKey,
-  birth,
+  birth: initialBirth,
 }: {
   vapidPublicKey: string;
   birth: BirthRecord | null;
@@ -71,6 +71,8 @@ export default function HomeClient({
   const [iosStatus, setIosStatus] = useState<IOSPushStatus>('not-ios');
   const confettiHandleRef = useRef<ConfettiHandle | null>(null);
   const fusionHandleRef = useRef<FusionOverlayHandle | null>(null);
+  // Seeded by the server render, which is what makes the first paint correct.
+  const [birth, setBirth] = useState<BirthRecord | null>(initialBirth);
   // Starts as null: computing it during render would use the server timezone
   // and cause a hydration mismatch.
   const [daysDiff, setDaysDiff] = useState<number | null>(null);
@@ -98,6 +100,25 @@ export default function HomeClient({
   // nothing to cleanup here; ConfettiContainer cleans up itself
 
   // confetti removal handled imperatively in RAF loop
+
+  // The page HTML comes from the cache, so it can lag behind the database:
+  // revalidatePath('/') covers the announcement itself, but nothing invalidates
+  // the cache when the record is edited or removed straight from the database.
+  // One small request per visit keeps the page honest without delaying the
+  // first paint, which still comes from the CDN.
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api/birth', { cache: 'no-store', signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('stato nascita non disponibile'))))
+      .then((fresh: BirthRecord | null) => {
+        setBirth((current) => (JSON.stringify(current) === JSON.stringify(fresh) ? current : fresh));
+      })
+      .catch(() => {
+        // Offline or server error: the server-rendered value stays, which is
+        // the best guess available.
+      });
+    return () => controller.abort();
+  }, []);
 
   const checkExistingSubscription = useCallback(async () => {
     setStatus('checking');

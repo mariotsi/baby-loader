@@ -152,6 +152,8 @@ baby-loader/
 │   │   └── api/
 │   │       ├── admin/login/
 │   │       │   └── route.ts   # POST login, DELETE logout
+│   │       ├── birth/
+│   │       │   └── route.ts   # GET stato nascita, sempre fresco
 │   │       ├── subscribe/
 │   │       │   └── route.ts   # POST/DELETE subscription
 │   │       └── send-notification/
@@ -213,6 +215,11 @@ Dettagli che vale la pena conoscere prima di metterci mano:
 - La home è servita dalla cache e viene invalidata da `revalidatePath('/')` nella route
   `send-notification`, anche quando la nascita è registrata con `notify: false`. Il
   `revalidate = 60` in `page.tsx` è solo una rete di sicurezza.
+- Nessuno dei due meccanismi copre le modifiche fatte direttamente sul database, tipiche
+  delle prove: `revalidatePath` non viene mai chiamata e la pagina resta stantia fino
+  alla scadenza. Per questo `HomeClient` interroga `GET /api/birth` a ogni visita e
+  sostituisce lo stato se il database dice altro. Il primo paint arriva comunque dalla
+  CDN, il controllo è asincrono e corregge la pagina in entrambe le direzioni.
 
 Per rigenerare il video da un sorgente nuovo:
 
@@ -226,6 +233,11 @@ ffmpeg -i public/fusione.mp4 -frames:v 1 -vf "scale=960:-2" -q:v 6 public/fusion
 ---
 
 ## API Routes
+
+### `GET /api/birth`
+Restituisce il record di nascita, oppure `null` se non c'è ancora. Pubblica di
+proposito: gli stessi dati sono già nell'HTML della home. Non è mai cachata, perché
+serve proprio a smentire una home cachata e stantia.
 
 ### `POST /api/subscribe`
 Salva o aggiorna una subscription su MongoDB.
