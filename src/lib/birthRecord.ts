@@ -11,6 +11,8 @@ export type BirthRecord = {
   weight: number;
   lengthCm: number;
   birthMessage: string;
+  /** English version of the free-text message, empty when not provided. */
+  birthMessageEn: string;
   birthDatetime: string;
 };
 
@@ -42,6 +44,7 @@ export function mapBirthDoc(doc: Record<string, unknown> | null | undefined): Bi
     weight: Number.isFinite(weight) ? weight : 0,
     lengthCm: Number.isFinite(lengthCm) ? lengthCm : 0,
     birthMessage: typeof doc.birthMessage === 'string' ? doc.birthMessage.trim() : '',
+    birthMessageEn: typeof doc.birthMessageEn === 'string' ? doc.birthMessageEn.trim() : '',
     birthDatetime: date.toISOString(),
   };
 }
