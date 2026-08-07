@@ -1,5 +1,5 @@
 .main {
-  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -321,6 +321,12 @@
   padding: 20px 0;
   text-align: center;
 }
+
+.mapLink {
+  color: var(--accent-4-ink);
+  text-decoration: underline;
+}
+.mapLink:hover { color: var(--accent-ink-sm); }
 
 @media (max-width: 600px) {
   .authCard { padding: 32px 24px; }

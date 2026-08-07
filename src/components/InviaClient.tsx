@@ -10,6 +10,7 @@ type SendStatus = 'idle' | 'loading' | 'success' | 'error';
 export default function InviaClient() {
   const [password, setPassword] = useState('');
   const [authed, setAuthed] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [authError, setAuthError] = useState('');
 
   const [title, setTitle] = useState('');
@@ -45,6 +46,8 @@ export default function InviaClient() {
       return true;
     } catch {
       return false;
+    } finally {
+      setCheckingAuth(false);
     }
   }, []);
 
@@ -190,6 +193,16 @@ export default function InviaClient() {
     notifType === 'birth'
       ? formatBirthNotification({ babyName, weight, lengthCm, birthMessage, birthMessageEn })
       : { title, body };
+
+  // Avoid flashing the login form for an instant while we're still checking
+  // whether the existing session cookie is valid.
+  if (checkingAuth) {
+    return (
+      <main className={styles.main}>
+        <div className={styles.grid} aria-hidden />
+      </main>
+    );
+  }
 
   // Auth screen
   if (!authed) {

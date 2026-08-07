@@ -51,6 +51,7 @@ export default function SubscriptionsClient() {
 
   const [password, setPassword] = useState('');
   const [authed, setAuthed] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [authError, setAuthError] = useState('');
 
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
@@ -87,6 +88,7 @@ export default function SubscriptionsClient() {
       return false;
     } finally {
       setLoadingList(false);
+      setCheckingAuth(false);
     }
   }, []);
 
@@ -169,6 +171,16 @@ export default function SubscriptionsClient() {
   }, [subscriptions, sortKey, sortDir]);
 
   const sortArrow = (key: SortKey) => (sortKey === key ? (sortDir === 'asc' ? '▲' : '▼') : '');
+
+  // Avoid flashing the login form for an instant while we're still checking
+  // whether the existing session cookie is valid.
+  if (checkingAuth) {
+    return (
+      <main className={styles.main}>
+        <div className={styles.grid} aria-hidden />
+      </main>
+    );
+  }
 
   // Auth screen — identical flow to /invia, since it shares the same session cookie.
   if (!authed) {
@@ -352,7 +364,21 @@ function DetailModal({ item, onClose }: { item: SubscriptionRow; onClose: () => 
               <Field label="Continente" value={loc.continentCode} />
               <Field label="In UE" value={loc.inEu === null ? null : loc.inEu ? 'Sì' : 'No'} />
               <Field label="CAP" value={loc.postal} />
-              <Field label="Coordinate" value={loc.lat !== null && loc.lon !== null ? `${loc.lat}, ${loc.lon}` : null} />
+              <Field
+                label="Coordinate"
+                value={
+                  loc.lat !== null && loc.lon !== null ? (
+                    <a
+                      href={`https://www.google.com/maps?q=${loc.lat},${loc.lon}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.mapLink}
+                    >
+                      {loc.lat}, {loc.lon}
+                    </a>
+                  ) : null
+                }
+              />
               <Field label="Fuso orario" value={loc.timezone} />
               <Field label="Offset UTC" value={loc.utcOffset} />
               <Field label="Prefisso telefonico" value={loc.callingCode} />
