@@ -132,39 +132,95 @@ SESSION_SECRET
 ## Struttura Progetto
 
 ```
-push-notify/
+baby-loader/
 ├── public/
-│   ├── sw.js              # Service Worker (gestisce push)
-│   ├── manifest.json      # PWA manifest
+│   ├── sw.js                  # Service Worker (gestisce push)
+│   ├── manifest.json          # PWA manifest
+│   ├── fusione.mp4            # Video mostrato alla prima visita dopo la nascita
+│   ├── fusione-poster.jpg     # Primo frame del video
 │   ├── favicon.png
-│   ├── icon-72.png        # (da generare)
-│   ├── icon-192.png       # (da generare)
-│   └── icon-512.png       # (da generare)
+│   ├── icon-72.png            # (da generare)
+│   ├── icon-192.png           # (da generare)
+│   └── icon-512.png           # (da generare)
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx     # Root layout
-│   │   ├── page.tsx       # Homepage (/)
-│   │   ├── globals.css
+│   │   ├── layout.tsx         # Root layout
+│   │   ├── page.tsx           # Homepage (/), legge la nascita lato server
+│   │   ├── globals.css        # Token colore, incluse le varianti "ink"
 │   │   ├── invia/
-│   │   │   └── page.tsx   # Admin send page (/invia)
+│   │   │   └── page.tsx       # Admin send page (/invia)
 │   │   └── api/
+│   │       ├── admin/login/
+│   │       │   └── route.ts   # POST login, DELETE logout
 │   │       ├── subscribe/
 │   │       │   └── route.ts   # POST/DELETE subscription
 │   │       └── send-notification/
 │   │           └── route.ts   # POST send, GET count
 │   ├── components/
-│   │   ├── HomeClient.tsx
-│   │   ├── HomeClient.module.css
+│   │   ├── HomeClient.tsx     # Sceglie fra stato "in attesa" e "nata"
+│   │   ├── BornHero.tsx       # Hero dello stato "nata"
+│   │   ├── FusionOverlay.tsx  # Video a schermo intero + replay
+│   │   ├── ConfettiContainer.tsx
 │   │   ├── InviaClient.tsx
-│   │   └── InviaClient.module.css
+│   │   └── *.module.css
 │   └── lib/
-│       └── mongodb.ts     # MongoDB singleton
+│       ├── mongodb.ts         # Connessione lazy
+│       ├── birth.ts           # Lettura del record di nascita
+│       ├── birthRecord.ts     # Tipo + normalizzazione (puro)
+│       ├── birthDisplay.ts    # Formattazione data/peso/età (puro)
+│       ├── birthNotification.ts  # Copy della notifica di nascita
+│       ├── fusion.ts          # Chiave localStorage del video
+│       ├── auth.ts            # Sessione admin firmata
+│       ├── push.ts            # Validazione delle subscription
+│       ├── rateLimit.ts
+│       └── vapid.ts
 ├── scripts/
-│   ├── generate-vapid.js  # Genera chiavi VAPID
-│   └── generate-icons.js  # Genera icone SVG
+│   ├── generate-vapid.js      # Genera chiavi VAPID
+│   └── gen-icons.js           # Genera le icone
 ├── netlify.toml
 ├── next.config.js
 └── package.json
+```
+
+---
+
+## Stato "nata" e video della fusione
+
+La home ha due stati, decisi lato server dal documento nella collection `births`:
+
+- **nessun documento** → countdown alla data prevista;
+- **documento presente** → nome, data e ora, peso, lunghezza, messaggio ed età in
+  giorni.
+
+Alla prima visita dopo la nascita parte `public/fusione.mp4` a schermo intero, che
+sfuma e scopre i dati. Il video è mostrato **una volta per browser**, tracciato con la
+chiave `localStorage` definita in `src/lib/fusion.ts`, e resta rivedibile dal pulsante
+"Rivedi la fusione".
+
+Dettagli che vale la pena conoscere prima di metterci mano:
+
+- `page.tsx` renderizza uno **script inline** prima del primo paint. Senza, chi arriva
+  per la prima volta vedrebbe per un istante i dati della bambina prima che il video li
+  copra: `localStorage` è leggibile solo dopo il mount.
+- Il flag "visto" è scritto **all'apertura**, non a fine video, così ricaricare a metà
+  riproduzione non fa ripartire tutto.
+- L'autoplay con audio viene bloccato dai browser senza un tocco precedente, quindi il
+  ripiego in muto con il pulsante "Attiva audio" è il caso comune. Il replay parte da un
+  click e ha sempre l'audio.
+- Non c'è un pulsante "Salta", ma l'overlay **si chiude da solo** in caso di errore o di
+  riproduzione che non parte: senza, una connessione instabile lascerebbe l'utente
+  chiuso fuori dal sito.
+- La home è servita dalla cache e viene invalidata da `revalidatePath('/')` nella route
+  `send-notification`, anche quando la nascita è registrata con `notify: false`. Il
+  `revalidate = 60` in `page.tsx` è solo una rete di sicurezza.
+
+Per rigenerare il video da un sorgente nuovo:
+
+```bash
+ffmpeg -i sorgente.mp4 -vf "scale=1280:-2:flags=lanczos" \
+  -c:v libx264 -profile:v high -pix_fmt yuv420p -crf 26 -preset veryslow \
+  -tune animation -c:a aac -b:a 96k -movflags +faststart public/fusione.mp4
+ffmpeg -i public/fusione.mp4 -frames:v 1 -vf "scale=960:-2" -q:v 6 public/fusione-poster.jpg
 ```
 
 ---

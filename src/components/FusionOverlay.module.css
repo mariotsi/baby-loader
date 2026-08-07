@@ -1,0 +1,62 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  /* Above the decorative body::before layer, which sits at z-index 1000. */
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0b0b12;
+  opacity: 1;
+  transition: opacity 900ms ease;
+}
+
+/* React owns visibility once mounted. Before hydration the inline script in
+   page.tsx keeps the overlay up via the html[data-fusione="pending"] rule
+   below, so a first-time visitor never glimpses the birth details first. */
+.overlay[data-phase='hidden'] {
+  display: none;
+}
+
+:global(html[data-fusione='pending']) .overlay[data-phase='hidden'] {
+  display: flex;
+}
+
+.overlay.fading {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  /* The clip is 16:9 and the overlay is often portrait: contain letterboxes it
+     against the backdrop rather than cropping faces out of frame. */
+  object-fit: contain;
+  background: #0b0b12;
+}
+
+.unmute {
+  position: absolute;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #1b1b1b;
+  font-family: var(--font-base);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.unmute:hover {
+  background: #ffffff;
+}

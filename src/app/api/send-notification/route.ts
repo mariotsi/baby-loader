@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import webpush from 'web-push';
 import { getMongoClient } from '@/lib/mongodb';
 import { isAuthorized, clientIp } from '@/lib/auth';
@@ -102,6 +103,11 @@ export async function POST(req: NextRequest) {
       );
 
       birthData = { babyName, weight, lengthCm, birthMessage };
+
+      // Flip the cached home page to the "born" state right away, regardless of
+      // whether a push is also being sent: whoever taps the notification must
+      // not land on the countdown.
+      revalidatePath('/');
 
       if (!notify) {
         return NextResponse.json({

@@ -190,6 +190,62 @@
   z-index: 99999;
 }
 
+/* Born state: measurements, birth message and the replay control. */
+.stats {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.stat {
+  min-width: 120px;
+  padding: 12px 20px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(34, 34, 34, 0.04);
+}
+
+.statLabel {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 700;
+  color: var(--accent-3-ink);
+}
+
+.birthMessage {
+  max-width: 480px;
+  margin-bottom: 24px;
+  padding: 14px 20px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+  font-style: italic;
+  box-shadow: 0 8px 24px rgba(34, 34, 34, 0.04);
+}
+
+.replayBtn {
+  margin-bottom: 28px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-light);
+  color: var(--accent-ink-sm);
+  box-shadow: 0 8px 24px rgba(34, 34, 34, 0.05);
+}
+
 /* CTA */
 .ctaWrapper {
   display: flex;

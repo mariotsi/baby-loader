@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import styles from './HomeClient.module.css';
 import ConfettiContainer, { ConfettiHandle } from './ConfettiContainer';
+import FusionOverlay, { FusionOverlayHandle } from './FusionOverlay';
+import BornHero from './BornHero';
+import type { BirthRecord } from '@/lib/birthRecord';
 import { decodeVapidKey, VapidKeyError } from '@/lib/vapid';
 
 type Status = 'idle' | 'checking' | 'loading' | 'subscribed' | 'denied' | 'unsupported' | 'error' | 'ios-needs-install';
@@ -55,12 +58,19 @@ function daysUntilTarget(): number {
   return Math.round((TARGET_DATE.getTime() - today.getTime()) / 86_400_000);
 }
 
-export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string }) {
+export default function HomeClient({
+  vapidPublicKey,
+  birth,
+}: {
+  vapidPublicKey: string;
+  birth: BirthRecord | null;
+}) {
   const [status, setStatus] = useState<Status>('checking');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [message, setMessage] = useState('');
   const [iosStatus, setIosStatus] = useState<IOSPushStatus>('not-ios');
   const confettiHandleRef = useRef<ConfettiHandle | null>(null);
+  const fusionHandleRef = useRef<FusionOverlayHandle | null>(null);
   // Starts as null: computing it during render would use the server timezone
   // and cause a hydration mismatch.
   const [daysDiff, setDaysDiff] = useState<number | null>(null);
@@ -68,6 +78,10 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
   // Re-run exactly at the next local midnight rather than polling hourly, so
   // the counter is never up to an hour stale.
   useEffect(() => {
+    if (birth) {
+      // The born state shows the age instead, computed by BornHero.
+      return;
+    }
     let timer: ReturnType<typeof setTimeout>;
     const schedule = () => {
       setDaysDiff(daysUntilTarget());
@@ -77,7 +91,7 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
     };
     schedule();
     return () => clearTimeout(timer);
-  }, []);
+  }, [birth]);
 
   // confetti is handled by ConfettiContainer via ref
 
@@ -284,44 +298,50 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
 
       {/* Hero */}
       <section className={styles.hero}>
-        <div className={`${styles.tagline} fade-up fade-up-delay-1`}>
-          <span className={styles.line} />
-          In attesa
-          <span className={styles.line} />
-        </div>
+        {birth ? (
+          <BornHero birth={birth} onReplay={() => fusionHandleRef.current?.play()} />
+        ) : (
+          <>
+            <div className={`${styles.tagline} fade-up fade-up-delay-1`}>
+              <span className={styles.line} />
+              In attesa
+              <span className={styles.line} />
+            </div>
 
-        <h1 className={`${styles.title} fade-up fade-up-delay-2`}>
-          Stiamo aspettando<br />
-          <em>Emma</em>
-        </h1>
+            <h1 className={`${styles.title} fade-up fade-up-delay-2`}>
+              Stiamo aspettando<br />
+              <em>Emma</em>
+            </h1>
 
-        <p className={`${styles.subtitle} fade-up fade-up-delay-3`}>
-          Arrivo previsto: <strong>12 settembre 2026</strong>.
-        </p>
+            <p className={`${styles.subtitle} fade-up fade-up-delay-3`}>
+              Arrivo previsto: <strong>12 settembre 2026</strong>.
+            </p>
 
-        <div className={`${styles.countdown} fade-up fade-up-delay-3`} aria-hidden>
-          {typeof daysDiff === 'number' && (() => {
-            const absDays = Math.abs(daysDiff);
-            const isPast = daysDiff < 0;
-            return (
-              <>
-                <div className={styles.countTop}>
-                  <span className={styles.countNum}>{absDays}</span>
-                  <span className={styles.countLabel}>
-                    {isPast
-                      ? `${absDays === 1 ? 'giorno' : 'giorni'} in ritardo`
-                      : `${absDays === 1 ? 'giorno' : 'giorni'} rimanenti`}
-                  </span>
-                </div>
-                {isPast && (
-                  <div className={styles.countSub}>
-                    Se la sta prendendo comoda...
-                  </div>
-                )}
-              </>
-            );
-          })()}
-        </div>
+            <div className={`${styles.countdown} fade-up fade-up-delay-3`} aria-hidden>
+              {typeof daysDiff === 'number' && (() => {
+                const absDays = Math.abs(daysDiff);
+                const isPast = daysDiff < 0;
+                return (
+                  <>
+                    <div className={styles.countTop}>
+                      <span className={styles.countNum}>{absDays}</span>
+                      <span className={styles.countLabel}>
+                        {isPast
+                          ? `${absDays === 1 ? 'giorno' : 'giorni'} in ritardo`
+                          : `${absDays === 1 ? 'giorno' : 'giorni'} rimanenti`}
+                      </span>
+                    </div>
+                    {isPast && (
+                      <div className={styles.countSub}>
+                        Se la sta prendendo comoda...
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </>
+        )}
 
         {/* Status indicator & CTA */}
         <div className={`${styles.ctaWrapper} fade-up fade-up-delay-4`}>
@@ -385,7 +405,9 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
             <div className={styles.subscribedState}>
               <div className={`${styles.statusBadge} ${styles.success}`}>
                 <span className={`${styles.indicator} ${styles.pulse}`} />
-                Notifica della nascita attiva su questo dispositivo
+                {birth
+                  ? 'Notifiche attive su questo dispositivo'
+                  : 'Notifica della nascita attiva su questo dispositivo'}
               </div>
               <button className="btn" onClick={unsubscribe}>
                 Disiscriviti
@@ -396,7 +418,7 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
           {(status === 'idle' || status === 'error') && (
             <button className="btn btn-primary" onClick={subscribe}>
               <BellIcon />
-              Ricevi notifica della nascita
+              {birth ? 'Ricevi le prossime notizie' : 'Ricevi notifica della nascita'}
             </button>
           )}
 
@@ -421,6 +443,8 @@ export default function HomeClient({ vapidPublicKey }: { vapidPublicKey: string 
       <footer className={styles.footer}>
         <span className={styles.footerText}>Stefania & Simone © {new Date().getFullYear()}</span>
       </footer>
+
+      {birth && <FusionOverlay ref={fusionHandleRef} />}
     </main>
   );
 }
