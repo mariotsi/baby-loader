@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import styles from './HomeClient.module.css';
+import { useLang } from './LangProvider';
 import type { BirthRecord } from '@/lib/birthRecord';
 import {
   ageInDays,
@@ -12,6 +13,7 @@ import {
 } from '@/lib/birthDisplay';
 
 export default function BornHero({ birth, onReplay }: { birth: BirthRecord; onReplay: () => void }) {
+  const { lang, t } = useLang();
   // Starts as null: computing it during render would use the server timezone
   // and cause a hydration mismatch.
   const [age, setAge] = useState<number | null>(null);
@@ -34,36 +36,36 @@ export default function BornHero({ birth, onReplay }: { birth: BirthRecord; onRe
     <>
       <div className={`${styles.tagline} fade-up fade-up-delay-1`}>
         <span className={styles.line} />
-        È nata
+        {t.bornTagline}
         <span className={styles.line} />
       </div>
 
       <h1 className={`${styles.title} fade-up fade-up-delay-2`}>
-        Benvenuta<br />
+        {t.bornTitle}<br />
         <em>{birth.babyName}</em>
       </h1>
 
       <p className={`${styles.subtitle} fade-up fade-up-delay-3`}>
-        Nata il {formatBirthDatetime(birth.birthDatetime)}
+        {t.bornOn(formatBirthDatetime(birth.birthDatetime, lang))}
       </p>
 
       <div className={`${styles.countdown} fade-up fade-up-delay-3`}>
         {age !== null && (
           <div className={styles.countTop}>
             {age > 0 && <span className={styles.countNum}>{age}</span>}
-            <span className={styles.countLabel}>{ageLabel(age)}</span>
+            <span className={styles.countLabel}>{ageLabel(age, lang)}</span>
           </div>
         )}
       </div>
 
       <dl className={`${styles.stats} fade-up fade-up-delay-3`}>
         <div className={styles.stat}>
-          <dt className={styles.statLabel}>Peso</dt>
-          <dd className={styles.statValue}>{formatWeight(birth.weight)}</dd>
+          <dt className={styles.statLabel}>{t.weightLabel}</dt>
+          <dd className={styles.statValue}>{formatWeight(birth.weight, lang)}</dd>
         </div>
         <div className={styles.stat}>
-          <dt className={styles.statLabel}>Lunghezza</dt>
-          <dd className={styles.statValue}>{formatLength(birth.lengthCm)}</dd>
+          <dt className={styles.statLabel}>{t.lengthLabel}</dt>
+          <dd className={styles.statValue}>{formatLength(birth.lengthCm, lang)}</dd>
         </div>
       </dl>
 
@@ -73,7 +75,7 @@ export default function BornHero({ birth, onReplay }: { birth: BirthRecord; onRe
 
       <button type="button" className={`btn ${styles.replayBtn} fade-up fade-up-delay-4`} onClick={onReplay}>
         <PlayIcon />
-        Rivedi la fusione
+        {t.replay}
       </button>
     </>
   );

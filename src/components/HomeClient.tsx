@@ -5,6 +5,9 @@ import styles from './HomeClient.module.css';
 import ConfettiContainer, { ConfettiHandle } from './ConfettiContainer';
 import FusionOverlay, { FusionOverlayHandle } from './FusionOverlay';
 import BornHero from './BornHero';
+import LangSwitch from './LangSwitch';
+import { useLang } from './LangProvider';
+import { formatLongDate } from '@/lib/birthDisplay';
 import type { BirthRecord } from '@/lib/birthRecord';
 import { decodeVapidKey, VapidKeyError } from '@/lib/vapid';
 
@@ -65,6 +68,7 @@ export default function HomeClient({
   vapidPublicKey: string;
   birth: BirthRecord | null;
 }) {
+  const { lang, t } = useLang();
   const [status, setStatus] = useState<Status>('checking');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [message, setMessage] = useState('');
@@ -159,7 +163,7 @@ export default function HomeClient({
     } catch (err) {
       console.error(err);
       setStatus('error');
-      setMessage(err instanceof VapidKeyError ? err.message : 'Chiave VAPID non valida.');
+      setMessage(err instanceof VapidKeyError ? err.message : t.errorVapid);
       return;
     }
 
@@ -236,17 +240,17 @@ export default function HomeClient({
       });
 
       if (!res.ok) {
-        throw new Error('Errore dal server');
+        throw new Error(t.errorServer);
       }
 
       setIsSubscribed(true);
       setStatus('subscribed');
-      setMessage('Iscrizione completata con successo.');
+      setMessage(t.subscribeOk);
       confettiHandleRef.current?.launch();
     } catch (err: any) {
       console.error(err);
       setStatus('error');
-      setMessage(err.message || 'Qualcosa è andato storto.');
+      setMessage(err.message || t.errorGeneric);
     }
   };
 
@@ -255,7 +259,7 @@ export default function HomeClient({
     try {
       const reg = await navigator.serviceWorker.getRegistration('/sw.js');
       if (!reg) {
-        throw new Error('Service worker non trovato');
+        throw new Error(t.errorNoServiceWorker);
       }
 
       const sub = await reg.pushManager.getSubscription();
@@ -272,7 +276,7 @@ export default function HomeClient({
 
       setIsSubscribed(false);
       setStatus('idle');
-      setMessage('Disiscritto con successo.');
+      setMessage(t.unsubscribeOk);
     } catch (err: any) {
       setStatus('error');
       setMessage(err.message);
@@ -291,9 +295,10 @@ export default function HomeClient({
       {/* Header */}
       <header className={`${styles.header} fade-up`}>
         <div className={styles.wordmark}>
-          <span className={styles.dot} role="img" aria-label="bambina">👧</span>
-          Stefania & Simone
+          <span className={styles.dot} role="img" aria-label={t.brandAlt}>👧</span>
+          Stefania &amp; Simone
         </div>
+        <LangSwitch />
       </header>
 
       {/* Hero */}
@@ -304,17 +309,17 @@ export default function HomeClient({
           <>
             <div className={`${styles.tagline} fade-up fade-up-delay-1`}>
               <span className={styles.line} />
-              In attesa
+              {t.waitingTagline}
               <span className={styles.line} />
             </div>
 
             <h1 className={`${styles.title} fade-up fade-up-delay-2`}>
-              Stiamo aspettando<br />
-              <em>Emma</em>
+              {t.waitingTitle}<br />
+              <em>{t.babyName}</em>
             </h1>
 
             <p className={`${styles.subtitle} fade-up fade-up-delay-3`}>
-              Arrivo previsto: <strong>12 settembre 2026</strong>.
+              {t.duePrefix} <strong>{formatLongDate(TARGET_DATE, lang)}</strong>.
             </p>
 
             <div className={`${styles.countdown} fade-up fade-up-delay-3`} aria-hidden>
@@ -326,14 +331,12 @@ export default function HomeClient({
                     <div className={styles.countTop}>
                       <span className={styles.countNum}>{absDays}</span>
                       <span className={styles.countLabel}>
-                        {isPast
-                          ? `${absDays === 1 ? 'giorno' : 'giorni'} in ritardo`
-                          : `${absDays === 1 ? 'giorno' : 'giorni'} rimanenti`}
+                        {isPast ? t.daysLate(absDays) : t.daysLeft(absDays)}
                       </span>
                     </div>
                     {isPast && (
                       <div className={styles.countSub}>
-                        Se la sta prendendo comoda...
+                        {t.lateNote}
                       </div>
                     )}
                   </>
@@ -349,7 +352,7 @@ export default function HomeClient({
             <div className={styles.statusLoading}>
               <button className="btn" disabled>
                 <Spinner />
-                Controllo stato...
+                {t.checking}
               </button>
             </div>
           )}
@@ -357,27 +360,25 @@ export default function HomeClient({
           {status === 'ios-needs-install' && (
             <div className={styles.iosInstallCard}>
               <div className={styles.iosInstallTitle}>
-                <SafariIcon /> Un passaggio in più su iOS
+                <SafariIcon /> {t.iosTitle}
               </div>
-              <p className={styles.iosInstallIntro}>
-                Safari su iPhone e iPad richiede che il sito sia aggiunto alla schermata Home per abilitare le notifiche push.
-              </p>
+              <p className={styles.iosInstallIntro}>{t.iosIntro}</p>
               <ol className={styles.iosSteps}>
                 <li>
                   <span className={styles.iosStepNum}>1</span>
-                  <span>Tocca il pulsante <strong>Condividi</strong> <ShareIcon /> in basso nella barra di Safari</span>
+                  <span>{t.iosStep1.before} <strong>{t.iosStep1.strong}</strong> <ShareIcon /> {t.iosStep1.after}</span>
                 </li>
                 <li>
                   <span className={styles.iosStepNum}>2</span>
-                  <span>Scorri e tocca <strong>&ldquo;Aggiungi a schermata Home&rdquo;</strong></span>
+                  <span>{t.iosStep2.before} <strong>{t.iosStep2.strong}</strong></span>
                 </li>
                 <li>
                   <span className={styles.iosStepNum}>3</span>
-                  <span>Tocca <strong>&ldquo;Aggiungi&rdquo;</strong> in alto a destra</span>
+                  <span>{t.iosStep3.before} <strong>{t.iosStep3.strong}</strong> {t.iosStep3.after}</span>
                 </li>
                 <li>
                   <span className={styles.iosStepNum}>4</span>
-                  <span>Apri l&apos;app dalla schermata Home e attiva le notifiche</span>
+                  <span>{t.iosStep4}</span>
                 </li>
               </ol>
             </div>
@@ -387,17 +388,17 @@ export default function HomeClient({
             <div className={`${styles.statusBadge} ${styles.warning}`}>
               <span className={styles.indicator} />
               {iosStatus === 'old-ios'
-                ? 'Aggiorna iOS alla versione 16.4 o superiore per le notifiche push'
+                ? t.unsupportedOldIos
                 : iosStatus === 'other-browser'
-                  ? 'Su iPhone e iPad le notifiche funzionano solo con Safari: riapri questa pagina in Safari'
-                  : 'Il tuo browser non supporta le notifiche push'}
+                  ? t.unsupportedOtherBrowser
+                  : t.unsupportedGeneric}
             </div>
           )}
 
           {status === 'denied' && (
             <div className={`${styles.statusBadge} ${styles.error}`}>
               <span className={styles.indicator} />
-              Permesso negato — abilita le notifiche nelle impostazioni del browser
+              {t.denied}
             </div>
           )}
 
@@ -405,12 +406,10 @@ export default function HomeClient({
             <div className={styles.subscribedState}>
               <div className={`${styles.statusBadge} ${styles.success}`}>
                 <span className={`${styles.indicator} ${styles.pulse}`} />
-                {birth
-                  ? 'Notifiche attive su questo dispositivo'
-                  : 'Notifica della nascita attiva su questo dispositivo'}
+                {birth ? t.subscribedBorn : t.subscribedWaiting}
               </div>
               <button className="btn" onClick={unsubscribe}>
-                Disiscriviti
+                {t.unsubscribe}
               </button>
             </div>
           )}
@@ -418,14 +417,14 @@ export default function HomeClient({
           {(status === 'idle' || status === 'error') && (
             <button className="btn btn-primary" onClick={subscribe}>
               <BellIcon />
-              {birth ? 'Ricevi le prossime notizie' : 'Ricevi notifica della nascita'}
+              {birth ? t.subscribeBorn : t.subscribeWaiting}
             </button>
           )}
 
           {status === 'loading' && (
             <button className="btn" disabled>
               <Spinner />
-              Attivazione...
+              {t.subscribing}
             </button>
           )}
 

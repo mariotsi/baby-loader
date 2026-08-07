@@ -3,6 +3,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import styles from './FusionOverlay.module.css';
 import { FUSION_SEEN_KEY } from '@/lib/fusion';
+import { useLang } from './LangProvider';
 
 export type FusionOverlayHandle = {
   play: () => void;
@@ -42,6 +43,7 @@ function markSeen(): void {
  * an `ended` event that never fires) dismisses it automatically.
  */
 const FusionOverlay = forwardRef<FusionOverlayHandle>((_props, ref) => {
+  const { t } = useLang();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const timersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const [phase, setPhase] = useState<'hidden' | 'playing' | 'fading'>('hidden');
@@ -165,7 +167,7 @@ const FusionOverlay = forwardRef<FusionOverlayHandle>((_props, ref) => {
       className={`${styles.overlay} ${phase === 'fading' ? styles.fading : ''}`}
       data-phase={phase}
       role="dialog"
-      aria-label="Video: la fusione"
+      aria-label={t.fusionDialogLabel}
       aria-hidden={phase === 'hidden'}
     >
       <video
@@ -182,7 +184,7 @@ const FusionOverlay = forwardRef<FusionOverlayHandle>((_props, ref) => {
       {needsUnmute && (
         <button type="button" className={styles.unmute} onClick={unmute}>
           <SoundIcon />
-          Attiva audio
+          {t.unmute}
         </button>
       )}
     </div>
