@@ -413,11 +413,17 @@ export default function HomeClient({
               <ol className={styles.iosSteps}>
                 <li>
                   <span className={styles.iosStepNum}>1</span>
-                  <span>{t.iosStep1.before} <strong>{t.iosStep1.strong}</strong> <ShareIcon /> {t.iosStep1.after}</span>
+                  <span>
+                    {t.iosStep1.before} <strong>{t.iosStep1.strong}</strong> <ShareIcon />{' '}
+                    {t.iosStep1.alt} <MoreIcon />, {t.iosStep1.after}
+                  </span>
                 </li>
                 <li>
                   <span className={styles.iosStepNum}>2</span>
-                  <span>{t.iosStep2.before} <strong>{t.iosStep2.strong}</strong></span>
+                  <span>
+                    {t.iosStep2.before} <strong>{t.iosStep2.strong}</strong>
+                    {t.iosStep2.after && <><br /><span className={styles.iosStepNote}>{t.iosStep2.after}</span></>}
+                  </span>
                 </li>
                 <li>
                   <span className={styles.iosStepNum}>3</span>
@@ -510,6 +516,16 @@ function ShareIcon() {
       <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
       <polyline points="16 6 12 2 8 6" />
       <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+function MoreIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ display: 'inline', verticalAlign: 'text-bottom' }}>
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="19" cy="12" r="2" />
     </svg>
   );
 }

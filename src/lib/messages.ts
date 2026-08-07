@@ -36,16 +36,17 @@ const it = {
   checking: 'Controllo stato...',
   iosTitle: 'Un passaggio in più su iOS',
   iosIntro:
-    'Safari su iPhone e iPad richiede che il sito sia aggiunto alla schermata Home per abilitare le notifiche push.',
+    'Apple non permette di inviare notifiche push ai siti aperti nel browser: solo i siti salvati come app sulla schermata Home possono riceverle. Aggiungi questo sito alla schermata Home per abilitarle.',
   iosStep1: {
     before: 'Tocca il pulsante',
     strong: 'Condividi',
-    after: 'in basso nella barra di Safari',
+    alt: 'o i tre puntini',
+    after: 'se non vedi Condividi nella barra in basso o in alto',
   },
   iosStep2: {
     before: 'Scorri e tocca',
     strong: '\u201cAggiungi a schermata Home\u201d',
-    after: '',
+    after: 'se non la vedi, scorri fino in fondo e tocca \u201cModifica azioni\u201d per abilitarla',
   },
   iosStep3: {
     before: 'Tocca',
@@ -102,16 +103,17 @@ const en: Messages = {
   checking: 'Checking...',
   iosTitle: 'One extra step on iOS',
   iosIntro:
-    'Safari on iPhone and iPad requires the site to be added to the Home Screen before push notifications can be enabled.',
+    'Apple does not allow push notifications for websites open in the browser \u2014 only sites saved as an app on the Home Screen can receive them. Add this site to your Home Screen to enable them.',
   iosStep1: {
     before: 'Tap the',
     strong: 'Share',
-    after: 'button in the Safari bar at the bottom',
+    alt: 'or the three dots',
+    after: 'if you don\u2019t see Share in the bottom or top bar',
   },
   iosStep2: {
     before: 'Scroll down and tap',
     strong: '\u201cAdd to Home Screen\u201d',
-    after: '',
+    after: 'if you don\u2019t see it, scroll to the bottom and tap \u201cEdit Actions\u201d to turn it on',
   },
   iosStep3: {
     before: 'Tap',
