@@ -1,11 +1,14 @@
+import { cookies, headers } from 'next/headers';
 import HomeClient from '@/components/HomeClient';
+import { LangProvider } from '@/components/LangProvider';
 import { getBirth } from '@/lib/birth';
 import { FUSION_SEEN_KEY } from '@/lib/fusion';
+import { LANG_COOKIE, negotiateLang } from '@/lib/i18n';
 
-// Safety net: the page is refreshed on demand by revalidatePath('/') as soon as
-// the birth is registered, but if that ever fails on the hosting runtime the
-// announcement still goes live within a minute.
-export const revalidate = 60;
+// The page depends on the request language and reads the birth record on every
+// visit, so there is nothing to cache. This is also what keeps the page honest
+// when the record is edited or removed straight from the database.
+export const dynamic = 'force-dynamic';
 
 /**
  * localStorage can only be read after mount, so with React state alone a
@@ -33,12 +36,13 @@ export default async function HomePage() {
     );
   }
 
+  const lang = negotiateLang(headers().get('accept-language'), cookies().get(LANG_COOKIE)?.value);
   const birth = await getBirth();
 
   return (
-    <>
+    <LangProvider initial={lang}>
       {birth && <script dangerouslySetInnerHTML={{ __html: FUSION_BOOT_SCRIPT }} />}
       <HomeClient vapidPublicKey={vapidKey} birth={birth} />
-    </>
+    </LangProvider>
   );
 }

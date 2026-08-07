@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { cookies, headers } from 'next/headers';
+import { LANG_COOKIE, negotiateLang } from '@/lib/i18n';
 import { DM_Serif_Display, DM_Mono } from 'next/font/google';
 import './globals.css';
 
@@ -32,9 +34,15 @@ export const viewport = {
   themeColor: '#FFF1F8',
 };
 
+// The language is read from the request, so this document cannot be a static
+// artifact shared by every visitor.
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const lang = negotiateLang(headers().get('accept-language'), cookies().get(LANG_COOKIE)?.value);
+
   return (
-    <html lang="it" className={`${dmSerif.variable} ${dmMono.variable}`}>
+    <html lang={lang} className={`${dmSerif.variable} ${dmMono.variable}`}>
       <body>{children}</body>
     </html>
   );
