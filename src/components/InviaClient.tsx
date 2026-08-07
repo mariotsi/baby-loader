@@ -22,7 +22,7 @@ export default function InviaClient() {
   const [lengthCm, setLengthCm] = useState<string>('');
   const [birthDatetime, setBirthDatetime] = useState<string>('');
   const [birthMessage, setBirthMessage] = useState<string>('Mamma, bimba (e papà) stanno bene!');
-  const [birthMessageEn, setBirthMessageEn] = useState<string>('');
+  const [birthMessageEn, setBirthMessageEn] = useState<string>('Mom, baby (and dad) are all doing well!');
   const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
   const [result, setResult] = useState<{ sent?: number; failed?: number; total?: number; message?: string } | null>(null);
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
@@ -292,7 +292,7 @@ export default function InviaClient() {
                 </div>
                 <div className={styles.field}>
                   <label className="label" htmlFor="baby-msg-en">Messaggio opzionale (inglese)</label>
-                  <textarea id="baby-msg-en" className="input" value={birthMessageEn} onChange={(e) => setBirthMessageEn(e.target.value)} placeholder="e.g. Mum and baby are doing well" />
+                  <textarea id="baby-msg-en" className="input" value={birthMessageEn} onChange={(e) => setBirthMessageEn(e.target.value)} placeholder="e.g. Mom and baby are doing well" />
                   <p className={styles.fieldHint}>Se lo lasci vuoto, chi legge in inglese vede il testo italiano con la bandierina.</p>
                 </div>
               </>
