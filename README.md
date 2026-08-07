@@ -212,14 +212,11 @@ Dettagli che vale la pena conoscere prima di metterci mano:
 - Non c'è un pulsante "Salta", ma l'overlay **si chiude da solo** in caso di errore o di
   riproduzione che non parte: senza, una connessione instabile lascerebbe l'utente
   chiuso fuori dal sito.
-- La home è servita dalla cache e viene invalidata da `revalidatePath('/')` nella route
-  `send-notification`, anche quando la nascita è registrata con `notify: false`. Il
-  `revalidate = 60` in `page.tsx` è solo una rete di sicurezza.
-- Nessuno dei due meccanismi copre le modifiche fatte direttamente sul database, tipiche
-  delle prove: `revalidatePath` non viene mai chiamata e la pagina resta stantia fino
-  alla scadenza. Per questo `HomeClient` interroga `GET /api/birth` a ogni visita e
-  sostituisce lo stato se il database dice altro. Il primo paint arriva comunque dalla
-  CDN, il controllo è asincrono e corregge la pagina in entrambe le direzioni.
+- La home non è in cache: `page.tsx` dichiara `export const dynamic = 'force-dynamic'`,
+  quindi legge il documento `births` a ogni richiesta. La pagina rispecchia sempre il
+  database, comprese le modifiche fatte a mano durante le prove, e non serve alcuna
+  invalidazione. La scelta nasce dall'internazionalizzazione, che rende impossibile
+  servire un unico HTML a tutti.
 
 Per rigenerare il video da un sorgente nuovo:
 
@@ -232,12 +229,33 @@ ffmpeg -i public/fusione.mp4 -frames:v 1 -vf "scale=960:-2" -q:v 6 public/fusion
 
 ---
 
-## API Routes
+## Lingua
 
-### `GET /api/birth`
-Restituisce il record di nascita, oppure `null` se non c'è ancora. Pubblica di
-proposito: gli stessi dati sono già nell'HTML della home. Non è mai cachata, perché
-serve proprio a smentire una home cachata e stantia.
+La home è disponibile in italiano e in inglese. La lingua viene decisa dal server a
+ogni richiesta, in quest'ordine:
+
+1. il cookie `lingua` (`it` o `en`), scritto dal selettore nell'header;
+2. l'header `Accept-Language` del browser, rispettando i pesi `q=`;
+3. italiano.
+
+Per questo la home è una pagina dinamica: non esiste un unico HTML da mettere in cache
+per tutti. Lo stesso vale per `layout.tsx`, che deve scrivere `<html lang>` con la
+lingua giusta.
+
+I testi stanno tutti in `src/lib/messages.ts`, tipizzati in modo che una chiave mancante
+in una delle due lingue faccia fallire la compilazione. Le formattazioni di data, peso e
+lunghezza sono in `src/lib/birthDisplay.ts` e usano `it-IT` e `en-GB`.
+
+Le notifiche push erano già bilingui: la lingua del destinatario viene salvata al momento
+dell'iscrizione e usata da `formatBirthNotification`.
+
+Il messaggio libero della nascita ha due campi in `/invia`, italiano e inglese. Se quello
+inglese è vuoto, chi legge in inglese vede il testo italiano preceduto dalla bandierina
+italiana, così sa perché la lingua è cambiata.
+
+---
+
+## API Routes
 
 ### `POST /api/subscribe`
 Salva o aggiorna una subscription su MongoDB.
