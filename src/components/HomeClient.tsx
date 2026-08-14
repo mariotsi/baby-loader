@@ -303,51 +303,11 @@ export default function HomeClient({
         applicationServerKey,
       });
 
-      // Save to backend, include user's locale when available.
-      // Prefer navigator.languages (ordered). Loop to find 'it-IT' first, then any 'en-...'.
-      // Fallback to 'it-IT'. Normalize short codes when needed.
-      const locale = (() => {
-        if (typeof navigator === 'undefined') {
-          return 'it-IT';
-        }
-        const langs: string[] = (navigator.languages && navigator.languages.length) ? Array.from(navigator.languages) : [navigator.language || ''];
-        // Normalize and check for exact Italian (it-IT) or generic Italian
-        for (const raw of langs) {
-          if (!raw) {
-            continue;
-          }
-          const s = String(raw).trim();
-          if (/^it(-|$)/i.test(s)) {
-            return 'it-IT';
-          }
-        }
-        // Then prefer any en-<region>
-        for (const raw of langs) {
-          if (!raw) {
-            continue;
-          }
-          const s = String(raw).trim();
-          if (/^en-/i.test(s)) {
-            return s;
-          }
-          if (/^en$/i.test(s)) {
-            return 'en-US';
-          }
-        }
-        // As a last attempt, normalize the first language if it's a two-letter code
-        const first = (langs[0] || '').trim();
-        if (/^[a-z]{2}$/i.test(first)) {
-          const code = first.toLowerCase();
-          if (code === 'it') {
-            return 'it-IT';
-          }
-          if (code === 'en') {
-            return 'en-US';
-          }
-          return `${code}-${code.toUpperCase()}`;
-        }
-        return 'it-IT';
-      })();
+      // Locale for the notification must match what the visitor is actually
+      // reading on the page (LangProvider/lingua cookie), not the browser's
+      // own language — those can disagree once the visitor picks a language
+      // by hand via LangSwitch.
+      const locale = lang === 'en' ? 'en-US' : 'it-IT';
       const deviceHints = await collectClientDeviceHints();
       const res = await fetch('/api/subscribe', {
         method: 'POST',
