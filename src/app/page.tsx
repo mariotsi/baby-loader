@@ -36,8 +36,8 @@ export default async function HomePage() {
     );
   }
 
-  const lang = negotiateLang(headers().get('accept-language'), cookies().get(LANG_COOKIE)?.value);
-  const birth = await getBirth();
+  const [headerList, cookieStore, birth] = await Promise.all([headers(), cookies(), getBirth()]);
+  const lang = negotiateLang(headerList.get('accept-language'), cookieStore.get(LANG_COOKIE)?.value);
 
   return (
     <LangProvider initial={lang}>

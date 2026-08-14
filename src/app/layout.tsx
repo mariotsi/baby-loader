@@ -38,8 +38,9 @@ export const viewport = {
 // artifact shared by every visitor.
 export const dynamic = 'force-dynamic';
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const lang = negotiateLang(headers().get('accept-language'), cookies().get(LANG_COOKIE)?.value);
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const [headerList, cookieStore] = await Promise.all([headers(), cookies()]);
+  const lang = negotiateLang(headerList.get('accept-language'), cookieStore.get(LANG_COOKIE)?.value);
 
   return (
     <html lang={lang} className={`${dmSerif.variable} ${dmMono.variable}`}>
