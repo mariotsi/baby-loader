@@ -33,7 +33,7 @@ export interface DeviceInfo {
   vendor: string | null;
   model: string | null;
   modelGuess: string | null; // best-effort, see guessIphoneModel below
-  // True when os.version is known-unreliable — see isIosVersionFrozen below.
+  // True when os.version is known-unreliable — see isAppleOsVersionFrozen below.
   osVersionFrozen: boolean;
   // Human-readable one-liner, e.g. "iPhone 14 Pro/15/15 Pro · iOS 17.4 · Safari 17.4"
   label: string;
@@ -134,14 +134,28 @@ function isAndroidPlaceholderModel(model: string | null, osName: string | null):
 // only fires for actual Safari.
 const IOS_FROZEN_UA_VERSION = '18.6';
 
-function isIosVersionFrozen(osName: string | null, osVersion: string | null, browserName: string | null): boolean {
-  if (!osName || !/ios|ipados/i.test(osName)) {
+// Desktop Safari has reported "Mac OS X 10_15_7" regardless of the real macOS
+// version since Big Sur (2020) — much older and more permanent than the iOS
+// freeze above, not something newly introduced by Safari 26. Same Safari-only
+// caveat applies: other macOS browsers still report the real OS version.
+const MACOS_FROZEN_UA_VERSION_PREFIX = '10.15';
+
+/**
+ * True when `osVersion` is one of Apple's known UA placeholders rather than
+ * the device's real OS version. Only Safari does this, so `browserName` must
+ * match it for either platform check to fire.
+ */
+function isAppleOsVersionFrozen(osName: string | null, osVersion: string | null, browserName: string | null): boolean {
+  if (!osName || !osVersion || !browserName || !/safari/i.test(browserName)) {
     return false;
   }
-  if (!osVersion || !osVersion.startsWith(IOS_FROZEN_UA_VERSION)) {
-    return false;
+  if (/ios|ipados/i.test(osName)) {
+    return osVersion.startsWith(IOS_FROZEN_UA_VERSION);
   }
-  return !!browserName && /safari/i.test(browserName);
+  if (/mac ?os/i.test(osName)) {
+    return osVersion.startsWith(MACOS_FROZEN_UA_VERSION_PREFIX);
+  }
+  return false;
 }
 
 function buildLabel(input: {
@@ -231,12 +245,15 @@ export function buildDeviceInfo(userAgent: string | null, rawHints: unknown): De
   const isIOS = !!osName && /ios|ipados/i.test(osName);
   const modelGuess = isIOS ? guessIphoneModel(screenWidth, screenHeight, pixelRatio) : null;
 
-  const osVersionFrozen = isIosVersionFrozen(osName, osVersion, browserName);
+  const osVersionFrozen = isAppleOsVersionFrozen(osName, osVersion, browserName);
   if (osVersionFrozen) {
-    // From iOS/iPadOS 26 onward Apple ships matching major version numbers for
-    // the OS and Safari (Safari 26 <-> iOS 26), and Safari's own version is
-    // NOT frozen — so its major is a far better estimate of the real OS
-    // version than the fake "18.6" Apple reports.
+    // From version 26 onward Apple ships matching major version numbers across
+    // iOS, iPadOS, macOS ("Tahoe") and Safari itself (Safari 26 <-> iOS/macOS
+    // 26), and Safari's own version is NOT frozen — so its major is a far
+    // better estimate of the real OS version than Apple's placeholder
+    // ("18.6" on iOS/iPadOS, "10.15.7" on macOS). Below Safari 26 there's no
+    // such alignment (e.g. Safari 17 shipped with macOS 14), so the real
+    // version is left unknown rather than guessed.
     const browserMajor = browserVersion ? parseInt(browserVersion, 10) : NaN;
     osVersion = Number.isFinite(browserMajor) && browserMajor >= 26 ? String(browserMajor) : null;
   }

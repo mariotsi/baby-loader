@@ -328,7 +328,14 @@ function DetailModal({ item, onClose }: { item: SubscriptionRow; onClose: () => 
               <Field label="Riepilogo" value={d.label} />
               <Field label="Sistema operativo" value={[d.os.name, d.os.version].filter(Boolean).join(' ')} />
               {d.osVersionFrozen && (
-                <Field label="Nota" value="Apple nasconde la versione esatta di iOS a partire da iOS 26" />
+                <Field
+                  label="Nota"
+                  value={
+                    d.os.version
+                      ? 'Apple nasconde la versione esatta del sistema operativo: quella mostrata è una stima ricavata dalla versione di Safari'
+                      : 'Apple nasconde la versione esatta del sistema operativo'
+                  }
+                />
               )}
               <Field label="Browser" value={[d.browser.name, d.browser.version].filter(Boolean).join(' ')} />
               <Field label="Motore" value={d.engine} />
