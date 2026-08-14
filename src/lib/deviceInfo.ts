@@ -136,21 +136,24 @@ const IOS_FROZEN_UA_VERSION = '18.6';
 
 // Desktop Safari has reported "Mac OS X 10_15_7" regardless of the real macOS
 // version since Big Sur (2020) — much older and more permanent than the iOS
-// freeze above, not something newly introduced by Safari 26. Same Safari-only
-// caveat applies: other macOS browsers still report the real OS version.
+// freeze above, not something newly introduced by Safari 26. Unlike iOS,
+// this one is NOT Safari-only: Chromium's own User-Agent Reduction reports
+// the identical placeholder on macOS for Chrome/Edge/Brave/Opera too, so any
+// browser can show it, confirmed against a real Chrome 151/macOS report.
 const MACOS_FROZEN_UA_VERSION_PREFIX = '10.15';
 
 /**
  * True when `osVersion` is one of Apple's known UA placeholders rather than
- * the device's real OS version. Only Safari does this, so `browserName` must
- * match it for either platform check to fire.
+ * the device's real OS version.
  */
 function isAppleOsVersionFrozen(osName: string | null, osVersion: string | null, browserName: string | null): boolean {
-  if (!osName || !osVersion || !browserName || !/safari/i.test(browserName)) {
+  if (!osName || !osVersion) {
     return false;
   }
   if (/ios|ipados/i.test(osName)) {
-    return osVersion.startsWith(IOS_FROZEN_UA_VERSION);
+    // Only Safari freezes this on iOS/iPadOS; other iOS browsers still
+    // report the real OS version.
+    return !!browserName && /safari/i.test(browserName) && osVersion.startsWith(IOS_FROZEN_UA_VERSION);
   }
   if (/mac ?os/i.test(osName)) {
     return osVersion.startsWith(MACOS_FROZEN_UA_VERSION_PREFIX);
@@ -251,10 +254,14 @@ export function buildDeviceInfo(userAgent: string | null, rawHints: unknown): De
     // iOS, iPadOS, macOS ("Tahoe") and Safari itself (Safari 26 <-> iOS/macOS
     // 26), and Safari's own version is NOT frozen — so its major is a far
     // better estimate of the real OS version than Apple's placeholder
-    // ("18.6" on iOS/iPadOS, "10.15.7" on macOS). Below Safari 26 there's no
-    // such alignment (e.g. Safari 17 shipped with macOS 14), so the real
-    // version is left unknown rather than guessed.
-    const browserMajor = browserVersion ? parseInt(browserVersion, 10) : NaN;
+    // ("18.6" on iOS/iPadOS, "10.15.7" on macOS). This alignment only holds
+    // for Safari: a Chrome/Edge major number has no relationship to the OS
+    // version at all, so non-Safari browsers always fall through to "unknown"
+    // rather than showing a meaningless guess. Below Safari 26 there's no
+    // such alignment either (e.g. Safari 17 shipped with macOS 14), so the
+    // real version is left unknown rather than guessed.
+    const isSafari = !!browserName && /safari/i.test(browserName);
+    const browserMajor = isSafari && browserVersion ? parseInt(browserVersion, 10) : NaN;
     osVersion = Number.isFinite(browserMajor) && browserMajor >= 26 ? String(browserMajor) : null;
   }
 
