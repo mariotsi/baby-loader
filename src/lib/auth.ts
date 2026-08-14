@@ -74,11 +74,18 @@ export function sessionCookieOptions(maxAge = SESSION_TTL_MS / 1000) {
 }
 
 export function clientIp(req: NextRequest): string {
+  // x-nf-client-connection-ip is set by Netlify's edge from the actual TCP
+  // connection, so unlike x-forwarded-for it cannot be spoofed by the client
+  // (whose own X-Forwarded-For header would otherwise land as the first hop).
+  const direct = req.headers.get('x-nf-client-connection-ip');
+  if (direct) {
+    return direct;
+  }
   const forwarded = req.headers.get('x-forwarded-for');
   if (forwarded) {
     return forwarded.split(',')[0].trim();
   }
-  return req.headers.get('x-nf-client-connection-ip') ?? 'unknown';
+  return 'unknown';
 }
 
 /**
