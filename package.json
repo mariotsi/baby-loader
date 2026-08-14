@@ -30,8 +30,8 @@
     "@types/ua-parser-js": "^0.7.39",
     "@types/web-push": "^3.6.3",
     "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.0",
-    "sharp": "^0.33.0",
+    "eslint-config-next": "^15.5.23",
+    "sharp": "^0.35.3",
     "typescript": "^5.0.0"
   }
 }
