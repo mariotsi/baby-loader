@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Baloo+2:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
 
 :root {
   /* Playful pastel theme for a joyful waiting page */
@@ -38,7 +38,9 @@
   --error-ink: #d90000; /* >=4.6:1 on every surface, including the tinted status chips */
   --warning-ink: #a25800; /* >=4.6:1 on every surface, including the tinted status chips */
 
-  --font-display: 'Baloo 2', 'Poppins', sans-serif;
+  /* --font-display comes from next/font (DM Serif Display, see layout.tsx)
+     via the variable class on <html> — no fallback declared here so there's
+     nothing left to race it in the cascade. */
   --font-base: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
 
   --radius: 12px;
